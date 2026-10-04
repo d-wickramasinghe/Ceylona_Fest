@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1096820538152",
+    "project_id": "ceylona-a096f",
+    "storage_bucket": "ceylona-a096f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1096820538152:android:f32b5af623617df843ae1d",
+        "android_client_info": {
+          "package_name": "com.example.ceylona"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyATm3xmVAkhL3-VyUFSFrPSrKDu32pC8v0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,28 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "ceylona-a096f",
+          "appId": "1:1096820538152:android:f32b5af623617df843ae1d",
+          "fileOutput": "android/app/google-services.json"
+        }
+      }
+    },
+    "dart": {
+      "lib/firebase_options.dart": {
+        "projectId": "ceylona-a096f",
+        "configurations": {
+          "android": "1:1096820538152:android:f32b5af623617df843ae1d",
+          "ios": "1:1096820538152:ios:fa9ae6ecec1ed9a143ae1d",
+          "macos": "1:1096820538152:ios:fa9ae6ecec1ed9a143ae1d",
+          "web": "1:1096820538152:web:043eebf6ecfac27143ae1d",
+          "windows": "1:1096820538152:web:01412410f9b9790543ae1d"
+        }
+      }
+    }
+  }
+}
