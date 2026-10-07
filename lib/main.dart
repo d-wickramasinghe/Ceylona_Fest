@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -15,55 +16,85 @@ import 'services/db.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const CeylonaApp());
 }
 
 class CeylonaApp extends StatelessWidget {
   const CeylonaApp({super.key});
+
   @override
-  Widget build(BuildContext context) => MaterialApp(
-        title: 'Ceylona',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFFFC107)),
-          useMaterial3: true,
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Ceylona',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFFFFC107),
         ),
-        home: StreamBuilder<User?>(
-          stream: FirebaseAuth.instance.authStateChanges(),
-          builder: (c, s) {
-            if (s.data == null) return const LoginScreen();
-            return FutureBuilder(
-              future: Db.appAccess(),
-              builder: (context, profile) {
-                if (!profile.hasData) return const Scaffold(body: Center(child: CircularProgressIndicator()));
-                final access = profile.data!;
-                final data = access['profile'] as Map<String, dynamic>;
-                if (access['isAdmin'] == true) return const AdminPortalScreen();
-                return MainNav(
-                  isOrganizer: data['isOrganizer'] == true,
-                  isAdmin: access['isAdmin'] == true,
+        useMaterial3: true,
+      ),
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          if (snapshot.data == null) {
+            return const LoginScreen();
+          }
+
+          return FutureBuilder(
+            future: Db.appAccess(),
+            builder: (context, profile) {
+              if (!profile.hasData) {
+                return const Scaffold(
+                  body: Center(
+                    child: CircularProgressIndicator(),
+                  ),
                 );
-              },
-            );
-          },
-        ),
-      );
+              }
+
+              final access = profile.data!;
+              final data =
+                  access['profile'] as Map<String, dynamic>;
+
+              if (access['isAdmin'] == true) {
+                return const AdminPortalScreen();
+              }
+
+              return MainNav(
+                isOrganizer: data['isOrganizer'] == true,
+                isAdmin: access['isAdmin'] == true,
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
 }
 
 class MainNav extends StatefulWidget {
   final bool isOrganizer;
   final bool isAdmin;
-  const MainNav({super.key, required this.isOrganizer, required this.isAdmin});
+
+  const MainNav({
+    super.key,
+    required this.isOrganizer,
+    required this.isAdmin,
+  });
+
   @override
   State<MainNav> createState() => _MainNavState();
 }
 
 class _MainNavState extends State<MainNav> {
   int i = 0;
+
   late bool organizerEnabled = widget.isOrganizer;
   late bool adminEnabled = widget.isAdmin;
   bool organizerMode = false;
+
   @override
   Widget build(BuildContext context) {
     final pages = organizerMode
@@ -85,40 +116,79 @@ class _MainNavState extends State<MainNav> {
             const HomeScreen(),
             const SearchScreen(),
             const SavedScreen(),
-            const NotificationsScreen(),
+            NotificationsScreen(),
             ProfileScreen(
               isOrganizer: organizerEnabled,
               organizerMode: false,
-              onOrganizerEnabled: () => setState(() => organizerEnabled = true),
+              onOrganizerEnabled: () => setState(() {
+                organizerEnabled = true;
+              }),
               onModeChanged: (mode) => setState(() {
                 organizerMode = mode;
                 i = 0;
               }),
             ),
           ];
+
     if (i >= pages.length) i = 0;
+
     final destinations = organizerMode
         ? const <NavigationDestination>[
-            NavigationDestination(icon: Icon(Icons.dashboard), label: 'Dashboard'),
-            NavigationDestination(icon: Icon(Icons.event_note), label: 'Events'),
-            NavigationDestination(icon: Icon(Icons.add_circle), label: 'Create'),
-            NavigationDestination(icon: Icon(Icons.analytics), label: 'Analytics'),
-            NavigationDestination(icon: Icon(Icons.person), label: 'Profile'),
+            NavigationDestination(
+              icon: Icon(Icons.dashboard),
+              label: 'Dashboard',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.event_note),
+              label: 'Events',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.add_circle),
+              label: 'Create',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.analytics),
+              label: 'Analytics',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.person),
+              label: 'Profile',
+            ),
           ]
         : const <NavigationDestination>[
-            NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
-            NavigationDestination(icon: Icon(Icons.search), label: 'Search'),
-            NavigationDestination(icon: Icon(Icons.bookmark), label: 'Saved'),
-            NavigationDestination(icon: Icon(Icons.notifications), label: 'Notifications'),
-            NavigationDestination(icon: Icon(Icons.person), label: 'Profile'),
+            NavigationDestination(
+              icon: Icon(Icons.home),
+              label: 'Home',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.search),
+              label: 'Search',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.bookmark),
+              label: 'Saved',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.notifications),
+              label: 'Notifications',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.person),
+              label: 'Profile',
+            ),
           ];
+
     return Scaffold(
-        body: pages[i],
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: i,
-          onDestinationSelected: (v) => setState(() => i = v),
-          destinations: destinations,
-        ),
-      );
+      body: pages[i],
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: i,
+        onDestinationSelected: (value) {
+          setState(() {
+            i = value;
+          });
+        },
+        destinations: destinations,
+      ),
+    );
   }
 }

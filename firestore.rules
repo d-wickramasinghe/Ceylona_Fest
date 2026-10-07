@@ -2,82 +2,145 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
     function signedIn() {
       return request.auth != null;
     }
 
     function isAdmin() {
-      return signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+      return signedIn()
+        && exists(
+          /databases/$(database)/documents/admins/$(request.auth.uid)
+        );
     }
 
     function isOrganizer() {
       return signedIn()
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isOrganizer == true;
+        && exists(
+          /databases/$(database)/documents/users/$(request.auth.uid)
+        )
+        && get(
+          /databases/$(database)/documents/users/$(request.auth.uid)
+        ).data.get('isOrganizer', false) == true;
     }
 
+    // USER PROFILES
     match /users/{userId} {
-      allow read: if signedIn() && request.auth.uid == userId;
+
+      allow read: if signedIn()
+        && request.auth.uid == userId;
+
       allow create: if signedIn()
         && request.auth.uid == userId
-        && request.resource.data.isOrganizer == false
-        && request.resource.data.role == 'seeker';
+        && request.resource.data.get('isOrganizer', false) == false
+        && request.resource.data.get('role', 'seeker') == 'seeker';
+
       allow update: if signedIn()
         && request.auth.uid == userId
         && (
-          (request.resource.data.get('isOrganizer', false) == resource.data.get('isOrganizer', false)
-            && request.resource.data.get('role', 'seeker') == resource.data.get('role', 'seeker'))
-          || (resource.data.get('isOrganizer', false) == false
+          (
+            request.resource.data.get('isOrganizer', false)
+              == resource.data.get('isOrganizer', false)
+            && request.resource.data.get('role', 'seeker')
+              == resource.data.get('role', 'seeker')
+          )
+          ||
+          (
+            resource.data.get('isOrganizer', false) == false
             && request.resource.data.get('isOrganizer', false) == true
             && request.resource.data.get('role', '') == 'organizer'
-            && request.resource.data.get('organizationName', '') is string)
+            && request.resource.data.get('organizationName', '') is string
+          )
         );
 
+      // SAVED EVENTS
       match /saved/{eventId} {
-        allow read, write: if signedIn() && (request.auth.uid == userId || isAdmin());
+        allow read, write: if signedIn()
+          && (request.auth.uid == userId || isAdmin());
       }
 
+      // USER NOTIFICATIONS
       match /notifications/{notificationId} {
-        allow read, update: if signedIn() && (request.auth.uid == userId || isAdmin());
+        allow read, update: if signedIn()
+          && (request.auth.uid == userId || isAdmin());
+
         allow create: if isAdmin();
-        allow delete: if signedIn() && request.auth.uid == userId;
+
+        allow delete: if signedIn()
+          && request.auth.uid == userId;
       }
     }
 
+    // ADMIN ACCOUNTS
     match /admins/{adminId} {
-      allow read: if signedIn() && request.auth.uid == adminId;
+
+      allow read: if signedIn()
+        && request.auth.uid == adminId;
+
       allow write: if false;
 
+      // ADMIN NOTIFICATIONS
       match /notifications/{notificationId} {
-        allow read, update: if signedIn() && request.auth.uid == adminId;
+        allow read, update: if signedIn()
+          && request.auth.uid == adminId;
+
         allow create, delete: if false;
       }
     }
 
+    // EVENTS
     match /events/{eventId} {
-      allow read: if signedIn()
-        && (resource.data.status == 'approved'
-          || resource.data.organizerId == request.auth.uid
-          || isAdmin());
-      allow create: if isOrganizer()
-        && request.resource.data.organizerId == request.auth.uid
-        && request.resource.data.status == 'pending';
-      allow update: if isAdmin()
-        || (isOrganizer()
-          && resource.data.organizerId == request.auth.uid
-          && request.resource.data.organizerId == request.auth.uid
-          && request.resource.data.status == 'pending');
-      allow delete: if isAdmin()
-        || (signedIn() && resource.data.organizerId == request.auth.uid);
 
+      allow read: if signedIn()
+        && (
+          resource.data.get('status', '') == 'approved'
+          || resource.data.get('organizerId', '') == request.auth.uid
+          || isAdmin()
+        );
+
+      allow create: if isOrganizer()
+        && request.resource.data.get('organizerId', '') == request.auth.uid
+        && request.resource.data.get('status', '') == 'pending';
+
+      allow update: if isAdmin()
+        || (
+          isOrganizer()
+          && resource.data.get('organizerId', '') == request.auth.uid
+          && request.resource.data.get('organizerId', '') == request.auth.uid
+          && request.resource.data.get('status', '') == 'pending'
+        );
+
+      allow delete: if isAdmin()
+        || (
+          signedIn()
+          && resource.data.get('organizerId', '') == request.auth.uid
+        );
+
+      // EVENT DISCUSSIONS / COMMENTS
       match /comments/{commentId} {
+
         allow read: if signedIn();
-        allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+
+        allow create: if signedIn()
+          && request.resource.data.get('userId', '') == request.auth.uid;
+
+        allow update: if signedIn()
+          && resource.data.get('userId', '') == request.auth.uid
+          && request.resource.data.get('userId', '') == request.auth.uid;
+
         allow delete: if signedIn()
-          && (resource.data.userId == request.auth.uid || isAdmin());
+          && (
+            resource.data.get('userId', '') == request.auth.uid
+            || isAdmin()
+          );
       }
 
+      // ADMIN DECISION HISTORY
       match /decision_log/{logId} {
+
         allow read, create: if isAdmin();
+
+        allow update, delete: if false;
       }
     }
   }
