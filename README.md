@@ -9,6 +9,34 @@ Flutter + Firebase (Auth, Firestore, Storage).
 5. `flutter pub get` then `flutter run`. APK: `flutter build apk`.
 6. Deploy the included Firebase rules with `firebase deploy --only firestore:rules,storage`.
 
+### Run on an Android emulator
+
+1. Open Android Studio, go to **Device Manager**, and start an Android Virtual Device
+   (Android  API  35 or newer is recommended).
+2. From this project folder, verify that Flutter can see the emulator:
+
+   ```bash
+   flutter devices
+   ```
+
+3. Start the app on the detected emulator:
+
+   ```bash
+   flutter pub get
+   flutter run -d emulator-5554
+   ```
+
+   Replace `emulator-5554` with the device ID shown by `flutter devices` if it is
+   different. Use `r` for hot reload and `q` to stop the app.
+
+If no emulator is running, list the available AVDs and launch one with:
+
+```bash
+flutter emulators
+flutter emulators --launch <emulator-id>
+flutter run
+```
+
 ### Enable event image uploads
 
 Before deploying Storage rules, open the [Firebase Storage console](https://console.firebase.google.com/project/ceylona-a096f/storage) for the project and click **Get started**. Choose a Storage location, then run:
