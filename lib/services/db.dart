@@ -824,24 +824,19 @@ class Db {
 
 
 
-  static Future<void> updateName(String name) async {
+   // PROFILE
 
+  static Future<void> updateName(String name) async {
     await FirebaseAuth.instance.currentUser!.updateDisplayName(name);
 
-
-
-    await _db
-
-        .collection('users')
-
-        .doc(uid)
-
-        .set({
-
+    await _db.collection('users').doc(uid).set({
       'name': name,
-
     }, SetOptions(merge: true));
-
   }
 
+  static Future<void> updateProfilePhoto(String photoUrl) async {
+    await userRef(uid).set({
+      'photoUrl': photoUrl,
+    }, SetOptions(merge: true));
+  }
 }

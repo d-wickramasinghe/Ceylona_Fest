@@ -14,6 +14,7 @@ import 'screens/analytics_screen.dart';
 import 'screens/admin_portal_screen.dart';
 import 'services/db.dart';
 
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
