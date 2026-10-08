@@ -163,11 +163,14 @@ class Db {
   }
 
   static Future<Map<String, dynamic>> appAccess() async {
-    await ensureUserProfile();
+    final admin = await isAdmin();
+    if (!admin) {
+      await ensureUserProfile();
+    }
     final profile = await userProfile();
     return {
       'profile': profile.data() ?? <String, dynamic>{},
-      'isAdmin': await isAdmin(),
+      'isAdmin': admin,
     };
   }
 
@@ -177,6 +180,13 @@ class Db {
       'organizationName': organizationName,
       'role': 'organizer',
     }, SetOptions(merge: true));
+  }
+
+  static Future<void> ensureOrganizerAccess() async {
+    await ensureUserProfile();
+    final profile = await userProfile();
+    if (profile.data()?['isOrganizer'] == true) return;
+    await becomeOrganizer('Independent organizer');
   }
 
   static Stream<QuerySnapshot<Map<String, dynamic>>> approvedEvents() => _db
@@ -194,20 +204,64 @@ class Db {
       .collection('events')
       .where('status', isEqualTo: 'pending')
       .snapshots();
-  static Future<void> createEvent(Map<String, dynamic> d) =>
-      _db.collection('events').add({
+  static Future<DocumentReference<Map<String, dynamic>>> createEvent(
+      Map<String, dynamic> d,
+      {String status = 'pending'}) async {
+    await ensureOrganizerAccess();
+    return _db.collection('events').add({
+      ...d,
+      'organizerId': uid,
+      'organizerName': userName,
+      'status': status,
+      'created': FieldValue.serverTimestamp(),
+    });
+  }
+
+  static Future<void> updateEvent(String id, Map<String, dynamic> d,
+          {String? status}) =>
+      _db.collection('events').doc(id).update({
         ...d,
-        'organizerId': uid,
-        'organizerName': userName,
-        'status': 'pending',
-        'created': FieldValue.serverTimestamp(),
+        if (status != null) 'status': status,
       });
-  static Future<void> updateEvent(String id, Map<String, dynamic> d) =>
-      _db.collection('events').doc(id).update({...d, 'status': 'pending'});
+  static Future<void> publishEvent(String id) =>
+      _db.collection('events').doc(id).update({
+        'status': 'pending',
+        'publishedAt': FieldValue.serverTimestamp(),
+      });
   static Future<void> deleteEvent(String id) =>
       _db.collection('events').doc(id).delete();
   static Future<void> setStatus(String id, String status) =>
       _db.collection('events').doc(id).update({'status': status});
+  static Future<void> saveReviewChecklist(
+          String eventId, List<bool> checks, String notes) =>
+      _db.collection('events').doc(eventId).update({
+        'reviewChecklist': checks,
+        'reviewNotes': notes.trim(),
+        'reviewChecklistUpdatedAt': FieldValue.serverTimestamp(),
+      });
+  static Future<void> deleteReviewChecklist(String eventId) =>
+      _db.collection('events').doc(eventId).update({
+        'reviewChecklist': FieldValue.delete(),
+        'reviewNotes': FieldValue.delete(),
+        'reviewChecklistUpdatedAt': FieldValue.delete(),
+      });
+  static Stream<QuerySnapshot<Map<String, dynamic>>> reviewChecklistItems() =>
+      _db.collection('review_checklist_items').orderBy('createdAt').snapshots();
+  static Future<void> addReviewChecklistItem(String title) =>
+      _db.collection('review_checklist_items').add({
+        'title': title.trim(),
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'createdBy': uid,
+      });
+  static Future<void> updateReviewChecklistItem(String id, String title) =>
+      _db.collection('review_checklist_items').doc(id).update({
+        'title': title.trim(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedBy': uid,
+      });
+  static Future<void> deleteReviewChecklistItem(String id) =>
+      _db.collection('review_checklist_items').doc(id).delete();
   static Future<void> addAgendaItem(
           String eventId, String time, String activity) =>
       _db.collection('events').doc(eventId).update({
@@ -245,6 +299,12 @@ class Db {
         'reminderMinutesBefore': minutesBefore,
         'reminderAt': Timestamp.fromDate(reminderAt),
       }, SetOptions(merge: true));
+  static Future<void> removeReminder(String id) async {
+    await _db.collection('users').doc(uid).collection('saved').doc(id).update({
+      'reminderMinutesBefore': FieldValue.delete(),
+      'reminderAt': FieldValue.delete(),
+    });
+  }
 
   static Stream<QuerySnapshot<Map<String, dynamic>>> comments(String eventId) =>
       _db

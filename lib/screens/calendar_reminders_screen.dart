@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -44,6 +45,16 @@ class _CalendarRemindersScreenState extends State<CalendarRemindersScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Reminder updated')));
+    }
+  }
+
+  Future<void> _removeReminder(String eventId) async {
+    await NotificationsService.instance.cancelReminder(eventId);
+    await Db.removeReminder(eventId);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Reminder removed')),
+      );
     }
   }
 
@@ -101,6 +112,9 @@ class _CalendarRemindersScreenState extends State<CalendarRemindersScreen> {
             final selected = byDay[DateTime(
                     selectedDay.year, selectedDay.month, selectedDay.day)] ??
                 [];
+            final reminders = events
+                .where((event) => event['reminderMinutesBefore'] != null)
+                .toList();
             return ListView(
                 padding: const EdgeInsets.fromLTRB(14, 2, 14, 14),
                 children: [
@@ -158,14 +172,30 @@ class _CalendarRemindersScreenState extends State<CalendarRemindersScreen> {
                   if (selected.isEmpty) const _EmptyEventCard(),
                   for (final event in selected) _EventCard(event: event),
                   const SizedBox(height: 10),
-                  _ReminderCard(
-                      event: selected.isEmpty ? null : selected.first,
-                      onChanged: selected.isEmpty
+                  for (final event in selected)
+                    _ReminderCard(
+                      event: event,
+                      onChanged: (minutesBefore) => _updateReminder(
+                          event['_id'] as String, event, minutesBefore),
+                      onRemove: event['reminderMinutesBefore'] == null
                           ? null
-                          : (minutesBefore) => _updateReminder(
-                              selected.first['_id'] as String,
-                              selected.first,
-                              minutesBefore)),
+                          : () => _removeReminder(event['_id'] as String),
+                    ),
+                  const SizedBox(height: 14),
+                  const Text('My Reminders',
+                      style:
+                          TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 8),
+                  if (reminders.isEmpty)
+                    const _EmptyReminderCard()
+                  else
+                    for (final event in reminders)
+                      _ReminderSummaryCard(
+                        event: event,
+                        onChanged: (minutesBefore) => _updateReminder(
+                            event['_id'] as String, event, minutesBefore),
+                        onRemove: () => _removeReminder(event['_id'] as String),
+                      ),
                   const SizedBox(height: 10),
                   SizedBox(
                       height: 44,
@@ -259,10 +289,93 @@ class _EventCard extends StatelessWidget {
         ][month - 1];
 }
 
+class _EmptyReminderCard extends StatelessWidget {
+  const _EmptyReminderCard();
+  @override
+  Widget build(BuildContext context) => Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: const Color(0xffd9dde5)),
+          borderRadius: BorderRadius.circular(8)),
+      child: const Text('No reminders set yet.',
+          style: TextStyle(fontSize: 10, color: Color(0xff667085))));
+}
+
+class _ReminderSummaryCard extends StatelessWidget {
+  final Map<String, dynamic> event;
+  final Future<void> Function(int minutesBefore) onChanged;
+  final VoidCallback onRemove;
+  const _ReminderSummaryCard(
+      {required this.event, required this.onChanged, required this.onRemove});
+
+  @override
+  Widget build(BuildContext context) {
+    final reminderAt = _reminderDate(event['reminderAt']);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: const Color(0xffd9dde5)),
+          borderRadius: BorderRadius.circular(8)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Icon(Icons.notifications_active_outlined,
+              size: 16, color: Color(0xff19a974)),
+          const SizedBox(width: 8),
+          Expanded(
+              child: Text(event['title'] ?? 'Event',
+                  style: const TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.w700))),
+          IconButton(
+              tooltip: 'Remove reminder',
+              icon: const Icon(Icons.delete_outline, size: 18),
+              onPressed: onRemove),
+        ]),
+        if (reminderAt != null)
+          Padding(
+            padding: const EdgeInsets.only(left: 24, bottom: 8),
+            child: Text(
+              'Reminder: ${reminderAt.year}-${_two(reminderAt.month)}-${_two(reminderAt.day)} ${_two(reminderAt.hour)}:${_two(reminderAt.minute)}',
+              style: const TextStyle(fontSize: 9, color: Color(0xff667085)),
+            ),
+          ),
+        Padding(
+          padding: const EdgeInsets.only(left: 24),
+          child: DropdownButton<int>(
+            value: event['reminderMinutesBefore'] as int?,
+            isDense: true,
+            items: const [
+              DropdownMenuItem(value: 1440, child: Text('1 day before')),
+              DropdownMenuItem(value: 60, child: Text('1 hour before')),
+              DropdownMenuItem(value: 0, child: Text('At event time')),
+            ],
+            onChanged: (value) {
+              if (value != null) onChanged(value);
+            },
+          ),
+        ),
+      ]),
+    );
+  }
+
+  static DateTime? _reminderDate(dynamic value) {
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    return null;
+  }
+
+  static String _two(int value) => value.toString().padLeft(2, '0');
+}
+
 class _ReminderCard extends StatefulWidget {
   final Map<String, dynamic>? event;
   final Future<void> Function(int minutesBefore)? onChanged;
-  const _ReminderCard({required this.event, required this.onChanged});
+  final VoidCallback? onRemove;
+  const _ReminderCard(
+      {required this.event, required this.onChanged, required this.onRemove});
 
   @override
   State<_ReminderCard> createState() => _ReminderCardState();
@@ -328,7 +441,14 @@ class _ReminderCardState extends State<_ReminderCard> {
             ])),
         const SizedBox(height: 7),
         if (widget.event?['reminderMinutesBefore'] != null)
-          const Text('Reminder set for this event',
-              style: TextStyle(fontSize: 8, color: Color(0xff19a974)))
+          Row(children: [
+            const Expanded(
+              child: Text('Reminder set for this event',
+                  style: TextStyle(fontSize: 8, color: Color(0xff19a974))),
+            ),
+            TextButton(
+                onPressed: widget.onRemove,
+                child: const Text('Remove', style: TextStyle(fontSize: 10))),
+          ])
       ]));
 }

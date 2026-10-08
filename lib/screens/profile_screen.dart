@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/db.dart';
 
@@ -24,7 +25,7 @@ class ProfileScreen extends StatelessWidget {
         children: [
           CircleAvatar(
               radius: 36,
-              backgroundColor: Colors.amber.shade100,
+              backgroundColor: AppColors.warning.withValues(alpha: .16),
               child: Text(
                   userName.isEmpty
                       ? 'U'

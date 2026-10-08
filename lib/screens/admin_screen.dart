@@ -32,17 +32,18 @@
 
 import 'package:flutter/material.dart';
 import '../services/db.dart';
+import '../theme/app_theme.dart';
 
 class AdminScreen extends StatelessWidget {
   const AdminScreen({super.key});
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        backgroundColor: const Color(0xFFFDF6EC),
+        backgroundColor: AppColors.background,
         appBar: AppBar(
-          backgroundColor: const Color(0xFFFDF6EC),
+          backgroundColor: AppColors.background,
           elevation: 0,
-          title: const Text('Event Approvals', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+          title: const Text('Event Approvals'),
         ),
         body: StreamBuilder(
           stream: Db.pendingEvents(),
@@ -59,23 +60,28 @@ class AdminScreen extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFE8D9B5)),
+                      border: Border.all(color: AppColors.border),
                     ),
                     child: Row(children: [
                       Expanded(
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(d['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                          Text(d['title'] ?? '',
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w600, fontSize: 15)),
                           const SizedBox(height: 4),
                           Text('${d['date'] ?? ''} • ${d['location'] ?? ''}',
-                              style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                              style: const TextStyle(
+                                  color: AppColors.secondaryText,
+                                  fontSize: 12)),
                         ]),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.check_circle, color: Colors.green),
+                        icon: const Icon(Icons.check_circle,
+                            color: AppColors.success),
                         onPressed: () => Db.setStatus(d.id, 'approved'),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.cancel, color: Colors.red),
+                        icon: const Icon(Icons.cancel, color: AppColors.error),
                         onPressed: () => Db.setStatus(d.id, 'rejected'),
                       ),
                     ]),

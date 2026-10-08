@@ -1,15 +1,24 @@
 import 'package:flutter/material.dart';
 import '../services/db.dart';
 
-class OrganizerScheduleEditorScreen extends StatelessWidget {
+class OrganizerScheduleEditorScreen extends StatefulWidget {
   final String eventId;
   final String eventTitle;
   const OrganizerScheduleEditorScreen(
       {super.key, required this.eventId, required this.eventTitle});
 
-  Future<void> _addAgenda(BuildContext context) async {
-    final time = TextEditingController();
-    final activity = TextEditingController();
+  @override
+  State<OrganizerScheduleEditorScreen> createState() =>
+      _OrganizerScheduleEditorScreenState();
+}
+
+class _OrganizerScheduleEditorScreenState
+    extends State<OrganizerScheduleEditorScreen> {
+  Future<void> _editAgenda(
+      BuildContext context, Map<String, dynamic>? existing) async {
+    final time = TextEditingController(text: existing?['time']?.toString());
+    final activity =
+        TextEditingController(text: existing?['activity']?.toString());
     final confirmed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
@@ -28,12 +37,16 @@ class OrganizerScheduleEditorScreen extends StatelessWidget {
                       child: const Text('Cancel')),
                   FilledButton(
                       onPressed: () => Navigator.pop(dialogContext, true),
-                      child: const Text('Add'))
+                      child: Text(existing == null ? 'Add' : 'Save'))
                 ]));
     if (confirmed == true &&
         time.text.trim().isNotEmpty &&
         activity.text.trim().isNotEmpty) {
-      await Db.addAgendaItem(eventId, time.text.trim(), activity.text.trim());
+      if (existing != null) {
+        await Db.removeAgendaItem(widget.eventId, existing);
+      }
+      await Db.addAgendaItem(
+          widget.eventId, time.text.trim(), activity.text.trim());
     }
   }
 
@@ -58,20 +71,21 @@ class OrganizerScheduleEditorScreen extends StatelessWidget {
                       child: const Text('Save'))
                 ]));
     if (confirmed == true && note.text.trim().isNotEmpty) {
-      await Db.setFacility(eventId, facility.key, note.text.trim());
+      await Db.setFacility(widget.eventId, facility.key, note.text.trim());
     }
   }
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: Text(eventTitle)),
+        appBar: AppBar(title: Text(widget.eventTitle)),
         body: StreamBuilder(
-          stream: Db.event(eventId),
+          stream: Db.event(widget.eventId),
           builder: (context, snapshot) {
             if (!snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
             }
             final data = snapshot.data!.data() ?? <String, dynamic>{};
+            final status = data['status']?.toString() ?? 'draft';
             final agenda = (data['agenda'] as List?)
                     ?.whereType<Map>()
                     .map((item) => Map<String, dynamic>.from(item))
@@ -83,6 +97,11 @@ class OrganizerScheduleEditorScreen extends StatelessWidget {
               const Text('Event Timeline',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
+              if (agenda.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 8),
+                  child: Text('No agenda items yet. Add them only if needed.'),
+                ),
               for (final item in agenda)
                 ListTile(
                     contentPadding: EdgeInsets.zero,
@@ -92,11 +111,18 @@ class OrganizerScheduleEditorScreen extends StatelessWidget {
                         child: Text(item['time'] ?? '',
                             style:
                                 const TextStyle(fontWeight: FontWeight.bold))),
-                    trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline),
-                        onPressed: () => Db.removeAgendaItem(eventId, item))),
+                    trailing: Wrap(children: [
+                      IconButton(
+                          icon: const Icon(Icons.edit_outlined),
+                          onPressed: () => _editAgenda(context, item)),
+                      IconButton(
+                          icon: const Icon(Icons.delete_outline),
+                          onPressed: () =>
+                              Db.removeAgendaItem(widget.eventId, item)),
+                    ]),
+                    onTap: () => _editAgenda(context, item)),
               OutlinedButton.icon(
-                  onPressed: () => _addAgenda(context),
+                  onPressed: () => _editAgenda(context, null),
                   icon: const Icon(Icons.add),
                   label: const Text('Add Agenda Item')),
               const SizedBox(height: 24),
@@ -114,7 +140,29 @@ class OrganizerScheduleEditorScreen extends StatelessWidget {
                     onChanged: (enabled) => enabled
                         ? _setFacility(context, facility,
                             facilities[facility.key]?.toString())
-                        : Db.removeFacility(eventId, facility.key)),
+                        : Db.removeFacility(widget.eventId, facility.key)),
+              const SizedBox(height: 16),
+              if (status == 'draft' || status == 'changes_requested')
+                FilledButton.icon(
+                    onPressed: () async {
+                      await Db.publishEvent(widget.eventId);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Published for admin review')));
+                        Navigator.pop(context);
+                      }
+                    },
+                    icon: const Icon(Icons.publish_outlined),
+                    label: const Text('Publish for Admin Review')),
+              if (status == 'pending')
+                const ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.hourglass_top),
+                  title: Text('Pending admin review'),
+                  subtitle: Text(
+                      'You can keep this draft data here while the authority officer reviews it.'),
+                ),
             ]);
           },
         ),

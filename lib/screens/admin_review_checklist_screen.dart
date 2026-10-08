@@ -1,140 +1,136 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
-const _checklistGold = Color(0xFFD4A017);
-const _checklistCream = Color(0xFFFDF6EC);
+import '../services/db.dart';
+import '../theme/app_theme.dart';
 
-class ReviewChecklistScreen extends StatefulWidget {
+class ReviewChecklistScreen extends StatelessWidget {
   const ReviewChecklistScreen({super.key});
 
-  @override
-  State<ReviewChecklistScreen> createState() => _ReviewChecklistScreenState();
-}
-
-class _ReviewChecklistScreenState extends State<ReviewChecklistScreen> {
-  final _checks = <bool>[true, true, true, true, true, false];
-  final _notesController = TextEditingController();
-
-  static const _labels = [
-    'Event information is complete',
-    'Organizer and contact verified',
-    'Date and venue are valid',
-    'Description is clear and accurate',
-    'Media meets quality requirements',
-    'Policy compliance confirmed',
-  ];
-
-  @override
-  void dispose() {
-    _notesController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final completed = _checks.where((value) => value).length;
-    return Scaffold(
-      backgroundColor: _checklistCream,
-      appBar: AppBar(
-        backgroundColor: _checklistCream,
-        surfaceTintColor: Colors.transparent,
-        leading: const BackButton(),
-        title: const Text('Review Checklist'),
-      ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-          children: [
-            Text(
-              'Verify every item before deciding on Colombo Cultural Festival.',
-              style: TextStyle(color: Colors.grey.shade700, height: 1.4),
-            ),
-            const SizedBox(height: 28),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Verification progress',
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
-                ),
-                Text(
-                  '$completed/6',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 16,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: LinearProgressIndicator(
-                value: completed / _labels.length,
-                minHeight: 8,
-                backgroundColor: const Color(0xFFE8DDCE),
-                valueColor: const AlwaysStoppedAnimation<Color>(_checklistGold),
-              ),
-            ),
-            const SizedBox(height: 30),
-            const Text(
-              'Required checks',
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFE9DED0)),
-              ),
-              child: Column(
-                children: [
-                  for (var i = 0; i < _labels.length; i++)
-                    CheckboxListTile(
-                      value: _checks[i],
-                      controlAffinity: ListTileControlAffinity.leading,
-                      activeColor: _checklistGold,
-                      checkColor: Colors.black,
-                      contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 12),
-                      title: Text(
-                        _labels[i],
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                      onChanged: (value) =>
-                          setState(() => _checks[i] = value ?? false),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 28),
-            const Text(
-              'Review notes',
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _notesController,
-              minLines: 5,
-              maxLines: 7,
-              decoration: InputDecoration(
-                hintText: 'Add any notes for the decision...',
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: Color(0xFFE9DED0)),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: Color(0xFFE9DED0)),
-                ),
-              ),
-            ),
-          ],
+  Future<void> _editItem(BuildContext context,
+      {String? id, String? currentTitle}) async {
+    final controller = TextEditingController(text: currentTitle ?? '');
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(id == null ? 'Add checklist item' : 'Edit checklist item'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Checklist item',
+            border: OutlineInputBorder(),
+          ),
         ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Save')),
+        ],
       ),
     );
+    final title = controller.text.trim();
+    if (saved != true || title.isEmpty) return;
+    if (id == null) {
+      await Db.addReviewChecklistItem(title);
+    } else {
+      await Db.updateReviewChecklistItem(id, title);
+    }
   }
+
+  Future<void> _deleteItem(BuildContext context, String id) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete checklist item?'),
+        content: const Text(
+            'This removes the item from the admin review checklist template.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Delete')),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await Db.deleteReviewChecklistItem(id);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          backgroundColor: AppColors.background,
+          surfaceTintColor: Colors.transparent,
+          title: const Text('Review Checklist'),
+        ),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: () => _editItem(context),
+          icon: const Icon(Icons.add),
+          label: const Text('Add item'),
+        ),
+        body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: Db.reviewChecklistItems(),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Center(
+                  child: Text('Could not load checklist: ${snapshot.error}'));
+            }
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final docs = snapshot.data!.docs;
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
+              children: [
+                Text(
+                  'Checklist items used by authority officers when deciding whether to approve, reject, or request changes.',
+                  style: TextStyle(color: Colors.grey.shade700, height: 1.4),
+                ),
+                const SizedBox(height: 16),
+                if (docs.isEmpty)
+                  const Card(
+                    child: ListTile(
+                      leading: Icon(Icons.rule_folder_outlined),
+                      title: Text('No checklist items yet'),
+                      subtitle: Text('Add the first review requirement.'),
+                    ),
+                  ),
+                for (final doc in docs)
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.checklist_rtl),
+                      title: Text(doc.data()['title'] ?? 'Checklist item'),
+                      subtitle: Text(
+                        doc.data()['updatedAt'] == null
+                            ? 'Template item'
+                            : 'Updated',
+                      ),
+                      trailing: Wrap(children: [
+                        IconButton(
+                            tooltip: 'Edit',
+                            icon: const Icon(Icons.edit_outlined),
+                            onPressed: () => _editItem(context,
+                                id: doc.id,
+                                currentTitle:
+                                    doc.data()['title']?.toString() ?? '')),
+                        IconButton(
+                            tooltip: 'Delete',
+                            icon: const Icon(Icons.delete_outline),
+                            onPressed: () => _deleteItem(context, doc.id)),
+                      ]),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      );
 }

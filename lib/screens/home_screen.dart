@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
 import '../services/db.dart';
 import 'event_details_screen.dart';
 
@@ -140,7 +141,7 @@ class _HomeSection extends StatelessWidget {
                           const SizedBox(height: 7),
                           Row(children: [
                             const Icon(Icons.verified,
-                                size: 14, color: Colors.green),
+                                size: 14, color: AppColors.success),
                             const SizedBox(width: 4),
                             Expanded(
                                 child: Text(data['title'] ?? 'Untitled event',

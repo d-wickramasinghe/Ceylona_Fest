@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
 import '../services/db.dart';
 
 class AnalyticsScreen extends StatelessWidget {
@@ -74,7 +75,7 @@ class AnalyticsScreen extends StatelessWidget {
                             Text('Last 7 days'),
                             Chip(
                                 label: Text('+24%',
-                                    style: TextStyle(color: Colors.green))),
+                                    style: TextStyle(color: AppColors.success))),
                           ]),
                       const SizedBox(height: 12),
                       SizedBox(
@@ -111,7 +112,7 @@ class AnalyticsScreen extends StatelessWidget {
                 Card(
                     child: ListTile(
                         leading: CircleAvatar(
-                            backgroundColor: Colors.green.shade100,
+                            backgroundColor: AppColors.success.withValues(alpha: .12),
                             child: const Icon(Icons.pie_chart_outline)),
                         title: const Text('Registrations enabled soon'),
                         subtitle: const Text(

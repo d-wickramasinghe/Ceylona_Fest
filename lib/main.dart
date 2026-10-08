@@ -14,6 +14,7 @@ import 'screens/analytics_screen.dart';
 import 'screens/admin_portal_screen.dart';
 import 'services/db.dart';
 import 'services/notifications.dart';
+import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,10 +29,7 @@ class CeylonaApp extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
         title: 'Ceylona',
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFFFC107)),
-          useMaterial3: true,
-        ),
+        theme: AppTheme.light,
         home: StreamBuilder<User?>(
           stream: FirebaseAuth.instance.authStateChanges(),
           builder: (c, s) {

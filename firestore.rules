@@ -26,7 +26,7 @@ service cloud.firestore {
         && (
           (request.resource.data.get('isOrganizer', false) == resource.data.get('isOrganizer', false)
             && request.resource.data.get('role', 'seeker') == resource.data.get('role', 'seeker'))
-          || (resource.data.get('isOrganizer', false) == false
+          || (resource.data.get('isOrganizer', false) != true
             && request.resource.data.get('isOrganizer', false) == true
             && request.resource.data.get('role', '') == 'organizer'
             && request.resource.data.get('organizationName', '') is string)
@@ -53,6 +53,10 @@ service cloud.firestore {
       }
     }
 
+    match /review_checklist_items/{itemId} {
+      allow read, write: if isAdmin();
+    }
+
     match /events/{eventId} {
       allow read: if signedIn()
         && (resource.data.status == 'approved'
@@ -60,12 +64,12 @@ service cloud.firestore {
           || isAdmin());
       allow create: if isOrganizer()
         && request.resource.data.organizerId == request.auth.uid
-        && request.resource.data.status == 'pending';
+        && request.resource.data.status in ['draft', 'pending'];
       allow update: if isAdmin()
         || (isOrganizer()
           && resource.data.organizerId == request.auth.uid
           && request.resource.data.organizerId == request.auth.uid
-          && request.resource.data.status == 'pending');
+          && request.resource.data.status in ['draft', 'pending', 'changes_requested']);
       allow delete: if isAdmin()
         || (signedIn() && resource.data.organizerId == request.auth.uid);
 

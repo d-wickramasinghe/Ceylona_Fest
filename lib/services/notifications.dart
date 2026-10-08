@@ -33,5 +33,8 @@ class NotificationsService {
     );
   }
 
+  Future<void> cancelReminder(String eventId) =>
+      plugin.cancel(_notificationId(eventId));
+
   int _notificationId(String eventId) => eventId.codeUnits.fold(0, (value, code) => (value * 31 + code) & 0x7fffffff);
 }

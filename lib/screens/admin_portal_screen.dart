@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../services/db.dart';
+import '../theme/app_theme.dart';
+import 'admin_review_checklist_screen.dart';
 
 class AdminPortalScreen extends StatefulWidget {
   const AdminPortalScreen({super.key});
@@ -16,42 +18,12 @@ class _AdminPortalScreenState extends State<AdminPortalScreen> {
     final pages = const [
       AdminDashboardScreen(),
       AdminApprovalsScreen(),
+      ReviewChecklistScreen(),
       AdminNotificationsScreen(),
       AdminProfileScreen(),
     ];
     return Theme(
-      data: Theme.of(context).copyWith(
-        scaffoldBackgroundColor: const Color(0xfffffbf5),
-        appBarTheme: const AppBarTheme(
-            backgroundColor: Color(0xfffff8ea),
-            elevation: 0,
-            surfaceTintColor: Colors.transparent),
-        cardTheme: CardThemeData(
-            color: Colors.white,
-            elevation: 1,
-            margin: const EdgeInsets.symmetric(vertical: 6),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-                side: const BorderSide(color: Color(0xffffb300)))),
-        inputDecorationTheme: InputDecorationTheme(
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Color(0xffffb300))),
-            enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Color(0xffffb300))),
-            focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide:
-                    const BorderSide(color: Color(0xffff9800), width: 2))),
-        navigationBarTheme: NavigationBarThemeData(
-            backgroundColor: Colors.white,
-            indicatorColor: const Color(0xffffc107),
-            labelTextStyle:
-                WidgetStateProperty.all(const TextStyle(fontSize: 10))),
-      ),
+      data: AppTheme.light,
       child: Scaffold(
         body: pages[index],
         bottomNavigationBar: NavigationBar(
@@ -62,6 +34,8 @@ class _AdminPortalScreenState extends State<AdminPortalScreen> {
                 icon: Icon(Icons.dashboard), label: 'Dashboard'),
             NavigationDestination(
                 icon: Icon(Icons.verified), label: 'Approvals'),
+            NavigationDestination(
+                icon: Icon(Icons.checklist), label: 'Checklist'),
             NavigationDestination(
                 icon: Icon(Icons.notifications), label: 'Notifications'),
             NavigationDestination(icon: Icon(Icons.person), label: 'Profile'),
@@ -117,19 +91,19 @@ class AdminDashboardScreen extends StatelessWidget {
                       _StatCard(
                           label: 'Pending',
                           value: pending,
-                          color: Colors.orange),
+                          color: AppColors.warning),
                       _StatCard(
                           label: 'Approved',
                           value: _count(docs, 'approved'),
-                          color: Colors.green),
+                          color: AppColors.success),
                       _StatCard(
                           label: 'Rejected',
                           value: _count(docs, 'rejected'),
-                          color: Colors.red),
+                          color: AppColors.error),
                       _StatCard(
                           label: 'Total',
                           value: docs.length,
-                          color: Colors.blue),
+                          color: AppColors.info),
                     ]),
                 const SizedBox(height: 24),
                 Text('Recent activity',
@@ -467,11 +441,11 @@ IconData _decisionIcon(String action) => switch (action) {
     };
 
 Color _decisionColor(String action) => switch (action) {
-      'approved' || 're-approved' => Colors.green,
+      'approved' || 're-approved' => AppColors.success,
       'suspended' => Colors.deepOrange,
-      'rejected' || 'revoked' => Colors.red,
-      'changes_requested' => Colors.orange,
-      _ => Colors.blueGrey,
+      'rejected' || 'revoked' => AppColors.error,
+      'changes_requested' => AppColors.info,
+      _ => AppColors.secondaryText,
     };
 
 class _StatusIcon extends StatelessWidget {
@@ -500,6 +474,8 @@ class _AdminSubmissionDetailsScreenState
     extends State<AdminSubmissionDetailsScreen> {
   String? currentStatus;
   final checks = <bool>[false, false, false, false, false, false];
+  final reviewNotes = TextEditingController();
+  bool checklistLoaded = false;
   final labels = const [
     'Event information is complete',
     'Organizer and contact verified',
@@ -508,6 +484,42 @@ class _AdminSubmissionDetailsScreenState
     'Media meets quality requirements',
     'Policy compliance confirmed',
   ];
+
+  @override
+  void dispose() {
+    reviewNotes.dispose();
+    super.dispose();
+  }
+
+  void _loadChecklist(Map<String, dynamic> event) {
+    if (checklistLoaded) return;
+    final saved = event['reviewChecklist'];
+    if (saved is List) {
+      for (var i = 0; i < checks.length && i < saved.length; i++) {
+        checks[i] = saved[i] == true;
+      }
+    }
+    reviewNotes.text = event['reviewNotes']?.toString() ?? '';
+    checklistLoaded = true;
+  }
+
+  Future<void> _saveChecklist() async {
+    await Db.saveReviewChecklist(widget.id, checks, reviewNotes.text);
+    if (mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Checklist saved')));
+    }
+  }
+
+  Future<void> _deleteChecklist() async {
+    await Db.deleteReviewChecklist(widget.id);
+    setState(() {
+      for (var i = 0; i < checks.length; i++) {
+        checks[i] = false;
+      }
+      reviewNotes.clear();
+    });
+  }
 
   Future<void> decide(String status) async {
     if (status == 'approved') {
@@ -660,6 +672,7 @@ class _AdminSubmissionDetailsScreenState
               return const Center(child: CircularProgressIndicator());
             }
             final event = snapshot.data!.data() ?? widget.data;
+            _loadChecklist(event);
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
@@ -736,6 +749,26 @@ class _AdminSubmissionDetailsScreenState
                       title: Text(labels[index]),
                       onChanged: (value) =>
                           setState(() => checks[index] = value ?? false)),
+                TextField(
+                    controller: reviewNotes,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                        labelText: 'Checklist notes',
+                        border: OutlineInputBorder())),
+                const SizedBox(height: 8),
+                Row(children: [
+                  Expanded(
+                      child: FilledButton.icon(
+                          onPressed: _saveChecklist,
+                          icon: const Icon(Icons.save_outlined),
+                          label: const Text('Save checklist'))),
+                  const SizedBox(width: 8),
+                  IconButton(
+                      tooltip: 'Clear checklist',
+                      onPressed: _deleteChecklist,
+                      icon:
+                          const Icon(Icons.delete_outline, color: Colors.red)),
+                ]),
                 const SizedBox(height: 12),
                 if ((currentStatus ?? event['status']) == 'pending')
                   Row(children: [

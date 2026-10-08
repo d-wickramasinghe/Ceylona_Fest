@@ -1,26 +1,24 @@
 import 'package:flutter/material.dart';
 
 import 'admin_review_checklist_screen.dart';
-
-const _adminGold = Color(0xFFD4A017);
-const _adminCream = Color(0xFFFDF6EC);
-const _adminBorder = Color(0xFFE9DED0);
+import '../theme/app_theme.dart';
 
 class SubmissionDetailsScreen extends StatelessWidget {
   const SubmissionDetailsScreen({super.key});
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        backgroundColor: _adminCream,
+        backgroundColor: AppColors.background,
         appBar: AppBar(
-          backgroundColor: _adminCream,
+          backgroundColor: AppColors.background,
           surfaceTintColor: Colors.transparent,
           leading: const BackButton(),
           title: const Text('Submission Details'),
           actions: const [
             Padding(
               padding: EdgeInsets.only(right: 16),
-              child: _StatusPill(label: 'Pending Review', color: _adminGold),
+              child: _StatusPill(
+                  label: 'Pending Review', color: AppColors.warning),
             ),
           ],
         ),
@@ -68,8 +66,8 @@ class SubmissionDetailsScreen extends StatelessWidget {
                 width: double.infinity,
                 child: FilledButton(
                   style: FilledButton.styleFrom(
-                    backgroundColor: _adminGold,
-                    foregroundColor: Colors.black,
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.primaryDark,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
@@ -265,7 +263,7 @@ class _AdminCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: _adminBorder),
+          border: Border.all(color: AppColors.border),
           boxShadow: const [
             BoxShadow(
               color: Color(0x12000000),
@@ -282,7 +280,7 @@ class _SectionTitle {
   static const style = TextStyle(
     fontSize: 17,
     fontWeight: FontWeight.w800,
-    color: Color(0xFF29251F),
+    color: AppColors.primaryDark,
   );
 }
 
@@ -302,7 +300,7 @@ class _StatusPill extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            color: Colors.brown.shade900,
+            color: AppColors.primaryDark,
             fontSize: 11,
             fontWeight: FontWeight.w800,
           ),

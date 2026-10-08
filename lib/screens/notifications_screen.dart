@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
 import '../services/db.dart';
 
 class NotificationsScreen extends StatefulWidget {
@@ -60,7 +61,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         return Card(
                             child: ListTile(
                                 leading: CircleAvatar(
-                                    backgroundColor: Colors.amber.shade100,
+                                    backgroundColor:
+                                        AppColors.warning.withValues(alpha: .16),
                                     child:
                                         const Icon(Icons.notifications_none)),
                                 title: Text(data['title'] ?? 'Ceylona update',
@@ -70,7 +72,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                 trailing: data['read'] == true
                                     ? null
                                     : const Icon(Icons.fiber_manual_record,
-                                        size: 12, color: Colors.amber)));
+                                        size: 12, color: AppColors.warning)));
                       })),
             ]);
           },
