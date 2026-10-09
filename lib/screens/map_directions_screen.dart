@@ -1,8 +1,11 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../widgets/ceylona_bottom_navigation.dart';
+import '../theme/app_theme.dart';
 
 class MapDirectionsScreen extends StatelessWidget {
   final Map<String, dynamic> event;
@@ -14,17 +17,17 @@ class MapDirectionsScreen extends StatelessWidget {
     final longitude = (event['lng'] as num?)?.toDouble() ?? 79.8612;
     final point = LatLng(latitude, longitude);
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-            onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.arrow_back_ios_new, size: 18)),
-        title: const Text('Event Location',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-      ),
       body: SafeArea(
         child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+            padding: const EdgeInsets.fromLTRB(0, 0, 0, 12),
             children: [
+              _PageHeader(
+                  title: 'Event Location',
+                  subtitle: event['title']?.toString() ?? 'Event',
+                  onBack: () => Navigator.pop(context)),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: Column(children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(9),
                 child: SizedBox(
@@ -90,12 +93,61 @@ class MapDirectionsScreen extends StatelessWidget {
                     }
                   },
                 ),
+              )]),
               ),
             ]),
       ),
       bottomNavigationBar: const CeylonaBottomNavigation(selectedIndex: 0),
     );
   }
+}
+
+class _PageHeader extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final VoidCallback onBack;
+  const _PageHeader(
+      {required this.title, required this.subtitle, required this.onBack});
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        height: 128,
+        child: Stack(children: [
+          ClipPath(
+              clipper: _HeaderClipper(),
+              child: Container(color: AppColors.primary)),
+          Positioned(
+              top: 14,
+              left: 12,
+              child: IconButton(
+                  onPressed: onBack,
+                  icon: const Icon(Icons.arrow_back, color: Colors.black))),
+          Positioned(
+              left: 20,
+              bottom: 28,
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(title,
+                    style: const TextStyle(
+                        fontSize: 22, fontWeight: FontWeight.w700)),
+                Text(subtitle, style: const TextStyle(fontSize: 11)),
+              ])),
+        ]),
+      );
+}
+
+class _HeaderClipper extends CustomClipper<ui.Path> {
+  @override
+  ui.Path getClip(Size size) {
+    final path = ui.Path()..lineTo(0, size.height * .72);
+    path.cubicTo(size.width * .25, size.height, size.width * .38,
+        size.height * .52, size.width * .58, size.height * .72);
+    path.cubicTo(size.width * .76, size.height * .9, size.width * .86,
+        size.height * .5, size.width, size.height * .64);
+    return path..lineTo(size.width, 0)..close();
+  }
+
+  @override
+  bool shouldReclip(covariant _HeaderClipper oldClipper) => false;
 }
 
 class _InfoCard extends StatelessWidget {

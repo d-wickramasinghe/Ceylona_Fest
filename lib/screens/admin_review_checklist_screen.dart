@@ -3,12 +3,13 @@ import 'package:flutter/material.dart';
 
 import '../services/db.dart';
 import '../theme/app_theme.dart';
+import '../widgets/admin_brand_bar.dart';
 
 class ReviewChecklistScreen extends StatelessWidget {
   const ReviewChecklistScreen({super.key});
 
   Future<void> _editItem(BuildContext context,
-      {String? id, String? currentTitle}) async {
+      {required String category, String? id, String? currentTitle}) async {
     final controller = TextEditingController(text: currentTitle ?? '');
     final saved = await showDialog<bool>(
       context: context,
@@ -35,9 +36,9 @@ class ReviewChecklistScreen extends StatelessWidget {
     final title = controller.text.trim();
     if (saved != true || title.isEmpty) return;
     if (id == null) {
-      await Db.addReviewChecklistItem(title);
+      await Db.addReviewChecklistItem(title, category: category);
     } else {
-      await Db.updateReviewChecklistItem(id, title);
+      await Db.updateReviewChecklistItem(id, title, category: category);
     }
   }
 
@@ -66,16 +67,7 @@ class ReviewChecklistScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Scaffold(
         backgroundColor: AppColors.background,
-        appBar: AppBar(
-          backgroundColor: AppColors.background,
-          surfaceTintColor: Colors.transparent,
-          title: const Text('Review Checklist'),
-        ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: () => _editItem(context),
-          icon: const Icon(Icons.add),
-          label: const Text('Add item'),
-        ),
+        appBar: const AdminBrandBar(title: 'Review Checklist'),
         body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
           stream: Db.reviewChecklistItems(),
           builder: (context, snapshot) {
@@ -95,42 +87,57 @@ class ReviewChecklistScreen extends StatelessWidget {
                   style: TextStyle(color: Colors.grey.shade700, height: 1.4),
                 ),
                 const SizedBox(height: 16),
-                if (docs.isEmpty)
-                  const Card(
-                    child: ListTile(
-                      leading: Icon(Icons.rule_folder_outlined),
-                      title: Text('No checklist items yet'),
-                      subtitle: Text('Add the first review requirement.'),
-                    ),
-                  ),
-                for (final doc in docs)
-                  Card(
-                    child: ListTile(
-                      leading: const Icon(Icons.checklist_rtl),
-                      title: Text(doc.data()['title'] ?? 'Checklist item'),
-                      subtitle: Text(
-                        doc.data()['updatedAt'] == null
-                            ? 'Template item'
-                            : 'Updated',
-                      ),
-                      trailing: Wrap(children: [
-                        IconButton(
-                            tooltip: 'Edit',
-                            icon: const Icon(Icons.edit_outlined),
-                            onPressed: () => _editItem(context,
-                                id: doc.id,
-                                currentTitle:
-                                    doc.data()['title']?.toString() ?? '')),
-                        IconButton(
-                            tooltip: 'Delete',
-                            icon: const Icon(Icons.delete_outline),
-                            onPressed: () => _deleteItem(context, doc.id)),
-                      ]),
-                    ),
-                  ),
+                _section(context, 'approval', 'Approve checklist', docs),
+                _section(context, 'changes', 'Request changes checklist', docs),
+                _section(context, 'rejection', 'Reject checklist', docs),
               ],
             );
           },
         ),
       );
+
+      Widget _section(BuildContext context, String category, String title,
+        List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) {
+      final items = docs
+        .where((doc) => (doc.data()['category']?.toString() ?? 'approval') == category)
+        .toList();
+      return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const SizedBox(height: 12),
+        Row(children: [
+        Expanded(
+          child: Text(title,
+            style: const TextStyle(
+              fontSize: 16, fontWeight: FontWeight.w700))),
+        IconButton(
+          tooltip: 'Add checklist item',
+          onPressed: () => _editItem(context, category: category),
+          icon: const Icon(Icons.add_circle_outline)),
+        ]),
+        if (items.isEmpty)
+        const Card(
+          child: ListTile(
+            leading: Icon(Icons.rule_folder_outlined),
+            title: Text('No items in this section'))),
+        for (final doc in items)
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.checklist_rtl),
+            title: Text(doc.data()['title'] ?? 'Checklist item'),
+            subtitle: Text(
+              doc.data()['updatedAt'] == null ? 'Template item' : 'Updated'),
+            trailing: Wrap(children: [
+              IconButton(
+                tooltip: 'Edit',
+                icon: const Icon(Icons.edit_outlined),
+                onPressed: () => _editItem(context,
+                  category: category,
+                  id: doc.id,
+                  currentTitle: doc.data()['title']?.toString() ?? '')),
+              IconButton(
+                tooltip: 'Delete',
+                icon: const Icon(Icons.delete_outline),
+                onPressed: () => _deleteItem(context, doc.id)),
+            ]))),
+      ]);
+      }
 }

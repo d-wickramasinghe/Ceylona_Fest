@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/db.dart';
 import '../widgets/ceylona_bottom_navigation.dart';
+import '../theme/app_theme.dart';
 
 class ScheduleFacilitiesScreen extends StatelessWidget {
   final String eventId;
@@ -8,13 +9,6 @@ class ScheduleFacilitiesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-              onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.arrow_back_ios_new, size: 18)),
-          title: const Text('Schedule & Facilities',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-        ),
         bottomNavigationBar: const CeylonaBottomNavigation(selectedIndex: 2),
         body: StreamBuilder(
           stream: Db.event(eventId),
@@ -34,11 +28,25 @@ class ScheduleFacilitiesScreen extends StatelessWidget {
             final facilities =
                 Map<String, dynamic>.from(data['facilities'] as Map? ?? {});
             return ListView(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                padding: const EdgeInsets.fromLTRB(0, 0, 0, 16),
                 children: [
-                  const Text('Event Timeline',
+                  _ScheduleHeader(
+                      title: 'Schedule & Facilities',
+                      eventTitle: data['title']?.toString() ?? 'Event',
+                      onBack: () => Navigator.pop(context)),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+                    child: Column(children: [
+                  _ScheduleSummary(
+                      date: '${data['date'] ?? ''} ${data['time'] ?? ''}',
+                      location: data['location']?.toString() ?? ''),
+                  const SizedBox(height: 18),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Event Timeline',
                       style:
-                          TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                          TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                  ),
                   const SizedBox(height: 10),
                   if (agenda.isEmpty)
                     const Text('No schedule added yet.',
@@ -63,9 +71,86 @@ class ScheduleFacilitiesScreen extends StatelessWidget {
                     const Text('No facilities added yet.',
                         style:
                             TextStyle(fontSize: 11, color: Color(0xff667085))),
+                    ]),
+                  ),
                 ]);
           },
         ),
+      );
+}
+
+class _ScheduleHeader extends StatelessWidget {
+  final String title;
+  final String eventTitle;
+  final VoidCallback onBack;
+  const _ScheduleHeader(
+      {required this.title, required this.eventTitle, required this.onBack});
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        height: 128,
+        child: Stack(children: [
+          ClipPath(
+              clipper: _ScheduleClipper(),
+              child: Container(color: AppColors.primary)),
+          Positioned(
+              top: 14,
+              left: 12,
+              child: IconButton(
+                  onPressed: onBack, icon: const Icon(Icons.arrow_back))),
+          Positioned(
+              left: 20,
+              bottom: 27,
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(title,
+                    style: const TextStyle(
+                        fontSize: 21, fontWeight: FontWeight.w700)),
+                Text(eventTitle, style: const TextStyle(fontSize: 11)),
+              ])),
+        ]),
+      );
+}
+
+class _ScheduleClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path()..lineTo(0, size.height * .72);
+    path.cubicTo(size.width * .25, size.height, size.width * .38,
+        size.height * .52, size.width * .58, size.height * .72);
+    path.cubicTo(size.width * .76, size.height * .9, size.width * .86,
+        size.height * .5, size.width, size.height * .64);
+    return path..lineTo(size.width, 0)..close();
+  }
+
+  @override
+  bool shouldReclip(covariant _ScheduleClipper oldClipper) => false;
+}
+
+class _ScheduleSummary extends StatelessWidget {
+  final String date;
+  final String location;
+  const _ScheduleSummary({required this.date, required this.location});
+
+  @override
+  Widget build(BuildContext context) => Column(children: [
+        _ScheduleSummaryRow(icon: Icons.calendar_month_outlined, text: date),
+        _ScheduleSummaryRow(icon: Icons.location_on_outlined, text: location),
+      ]);
+}
+
+class _ScheduleSummaryRow extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  const _ScheduleSummaryRow({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) => Card(
+        child: ListTile(
+            leading: CircleAvatar(
+                backgroundColor: AppColors.primary.withValues(alpha: .14),
+                child: Icon(icon, color: AppColors.primaryDark, size: 18)),
+            title: Text(text,
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
       );
 }
 

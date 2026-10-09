@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/db.dart';
+import '../widgets/seeker_page_header.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -14,8 +15,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Alerts')),
-        body: StreamBuilder(
+        backgroundColor: const Color(0xfffbfaf7),
+        body: Column(children: [
+          const SeekerPageHeader(
+              title: 'Your Alerts', subtitle: 'Updates from Ceylona'),
+          Expanded(child: StreamBuilder(
           stream: Db.notifications(),
           builder: (context, snapshot) {
             if (snapshot.hasError) {
@@ -76,6 +80,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       })),
             ]);
           },
-        ),
+        )),
+        ]),
       );
 }

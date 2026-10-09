@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/db.dart';
 import 'event_details_screen.dart';
+import '../widgets/event_image.dart';
+import '../widgets/seeker_page_header.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -32,17 +34,23 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Search & Filter'), actions: [
-          TextButton(
-              onPressed: () => setState(() {
-                    query.clear();
-                    category = 'All';
-                    location = 'All locations';
-                    dateRange = 'Any date';
-                  }),
-              child: const Text('Clear All'))
-        ]),
-        body: StreamBuilder(
+        backgroundColor: const Color(0xfffbfaf7),
+        body: Column(children: [
+          SeekerPageHeader(
+              title: 'Find your next event',
+              subtitle: 'Search festivals, music, food and more',
+              actions: [
+                IconButton(
+                    tooltip: 'Clear filters',
+                    onPressed: () => setState(() {
+                          query.clear();
+                          category = 'All';
+                          location = 'All locations';
+                          dateRange = 'Any date';
+                        }),
+                    icon: const Icon(Icons.restart_alt))
+              ]),
+          Expanded(child: StreamBuilder(
           stream: Db.approvedEvents(),
           builder: (context, snapshot) {
             if (snapshot.hasError) {
@@ -161,6 +169,12 @@ class _SearchScreenState extends State<SearchScreen> {
                             margin: const EdgeInsets.symmetric(
                                 horizontal: 12, vertical: 5),
                             child: ListTile(
+                              leading: EventImage(
+                                  url: data['imageUrl']?.toString(),
+                                  width: 64,
+                                  height: 64,
+                                  borderRadius: const BorderRadius.all(
+                                      Radius.circular(6))),
                               title: Text(data['title'] ?? 'Untitled event'),
                               subtitle: Text(
                                   '${data['date'] ?? ''} • ${data['location'] ?? ''}\n${data['price'] ?? 'Free'}'),
@@ -178,6 +192,7 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
             ]);
           },
-        ),
+        )),
+        ]),
       );
 }

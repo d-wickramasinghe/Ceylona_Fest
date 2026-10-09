@@ -2,13 +2,14 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../services/db.dart';
 import '../theme/app_theme.dart';
 import 'organizer_schedule_editor_screen.dart';
+import '../widgets/event_image.dart';
+import 'event_gallery_screen.dart';
 
 enum OrganizerView { dashboard, events, create }
 
@@ -228,24 +229,10 @@ class OrganizerScreen extends StatelessWidget {
                                 .split('.')
                                 .last
                                 .toLowerCase();
-                            final contentType = switch (extension) {
-                              'png' => 'image/png',
-                              'webp' => 'image/webp',
-                              _ => 'image/jpeg',
-                            };
-                            final ref = FirebaseStorage.instance.ref().child(
-                                'events/$uid/${DateTime.now().millisecondsSinceEpoch}.$extension');
-                            await ref
-                                .putData(
-                                    selectedImageBytes!,
-                                    SettableMetadata(
-                                      contentType: contentType,
-                                      cacheControl: 'public,max-age=86400',
-                                    ))
-                                .timeout(const Duration(seconds: 45));
-                            imageUrl = await ref
-                                .getDownloadURL()
-                                .timeout(const Duration(seconds: 20));
+                            imageUrl = await Db.uploadImage(
+                                selectedImageBytes!, extension,
+                                folder: 'events')
+                              .timeout(const Duration(seconds: 45));
                           }
                           final data = {
                             'title': t.text.trim(),
@@ -454,6 +441,12 @@ class _OrganizerDashboard extends StatelessWidget {
               for (final doc in docs.take(5))
                 Card(
                     child: ListTile(
+                    leading: EventImage(
+                      url: doc.data()['imageUrl']?.toString(),
+                      width: 56,
+                      height: 56,
+                      borderRadius: const BorderRadius.all(
+                        Radius.circular(6))),
                         title: Text(doc['title'] ?? 'Untitled event'),
                         subtitle: Text(
                             '${doc['date'] ?? ''} - ${doc['location'] ?? ''}'),
@@ -481,6 +474,12 @@ class _OrganizerEventList extends StatelessWidget {
         for (final d in docs)
           Card(
             child: ListTile(
+              leading: EventImage(
+                  url: d.data()['imageUrl']?.toString(),
+                  width: 56,
+                  height: 56,
+                  borderRadius:
+                      const BorderRadius.all(Radius.circular(6))),
               title: Text(d['title'] ?? 'Untitled event',
                   maxLines: 2, overflow: TextOverflow.ellipsis),
               subtitle: Text(
@@ -502,6 +501,16 @@ class _OrganizerEventList extends StatelessWidget {
                             builder: (_) => OrganizerScheduleEditorScreen(
                                 eventId: d.id,
                                 eventTitle: d['title'] ?? 'Untitled event')))),
+                        IconButton(
+                          icon: const Icon(Icons.photo_library_outlined),
+                          tooltip: 'Event gallery',
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => EventGalleryScreen(
+                                eventId: d.id,
+                                eventTitle: d['title'] ?? 'Untitled event',
+                                mode: GalleryMode.organizer)))),
                 IconButton(
                     icon: const Icon(Icons.edit_outlined),
                     tooltip: 'Edit event',

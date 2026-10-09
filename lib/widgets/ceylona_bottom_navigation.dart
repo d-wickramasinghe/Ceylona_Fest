@@ -1,9 +1,25 @@
 import 'package:flutter/material.dart';
+import '../screens/home_screen.dart';
+import '../screens/search_screen.dart';
+import '../screens/saved_screen.dart';
+import '../screens/notifications_screen.dart';
+import '../screens/profile_screen.dart';
 
 class CeylonaBottomNavigation extends StatelessWidget {
   final int selectedIndex;
 
   const CeylonaBottomNavigation({super.key, this.selectedIndex = 0});
+
+    void _navigate(BuildContext context, int index) {
+        final page = switch (index) {
+            0 => const HomeScreen(),
+            1 => const SearchScreen(),
+            2 => const SavedScreen(),
+            3 => const NotificationsScreen(),
+            _ => const ProfileScreen(),
+        };
+        Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+    }
 
   @override
   Widget build(BuildContext context) => NavigationBar(
@@ -28,5 +44,6 @@ class CeylonaBottomNavigation extends StatelessWidget {
               selectedIcon: Icon(Icons.person, size: 18),
               label: 'Profile'),
         ],
+          onDestinationSelected: (index) => _navigate(context, index),
       );
 }

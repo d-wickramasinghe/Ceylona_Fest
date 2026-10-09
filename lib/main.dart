@@ -31,7 +31,7 @@ class CeylonaApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light,
         home: StreamBuilder<User?>(
-          stream: FirebaseAuth.instance.authStateChanges(),
+          stream: FirebaseAuth.instance.userChanges(),
           builder: (c, s) {
             if (s.data == null) return const LoginScreen();
             return FutureBuilder(

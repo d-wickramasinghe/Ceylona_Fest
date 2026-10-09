@@ -17,11 +17,14 @@ dependencies:
   flutter_local_notifications: ^17.2.3
   timezone: ^0.9.4
   image_picker: ^1.2.4
-  firebase_storage: ^12.4.10
   google_fonts: ^6.2.1
+  http: ^1.2.2
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
 flutter:
   uses-material-design: true
+  assets:
+    - assets/images/home_hero.jpg
+    - assets/images/ceylona_fest_logo.png

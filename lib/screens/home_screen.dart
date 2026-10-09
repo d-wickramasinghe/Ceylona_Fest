@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/db.dart';
 import 'event_details_screen.dart';
+import 'search_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -24,15 +25,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-            title:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Hello, $userName!',
-              style:
-                  const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-          const Text('Ready to explore Sri Lanka?',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.normal))
-        ])),
+        backgroundColor: const Color(0xfffbfaf7),
         body: StreamBuilder(
           stream: Db.approvedEvents(),
           builder: (context, snapshot) {
@@ -48,31 +41,28 @@ class _HomeScreenState extends State<HomeScreen> {
               return matchesText && (cat == 'All' || event['category'] == cat);
             }).toList();
             return ListView(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+              padding: const EdgeInsets.only(bottom: 20),
                 children: [
-                  TextField(
-                      decoration: InputDecoration(
-                          prefixIcon: const Icon(Icons.search),
-                          hintText: 'Search events, venues or locations',
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none)),
-                      onChanged: (value) =>
-                          setState(() => q = value.toLowerCase())),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                      height: 38,
-                      child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: cats.length,
-                          separatorBuilder: (_, __) => const SizedBox(width: 8),
-                          itemBuilder: (context, index) => ChoiceChip(
-                              label: Text(cats[index]),
-                              selected: cat == cats[index],
-                              onSelected: (_) =>
-                                  setState(() => cat = cats[index])))),
+                  _HomeHero(
+                    onSearch: (value) =>
+                      setState(() => q = value.toLowerCase())),
+                const SizedBox(height: 12),
+                Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: SizedBox(
+                  height: 38,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: cats.length,
+                    separatorBuilder: (_, __) =>
+                      const SizedBox(width: 8),
+                    itemBuilder: (context, index) => ChoiceChip(
+                      label: Text(cats[index]),
+                      selected: cat == cats[index],
+                      onSelected: (_) =>
+                        setState(() => cat = cats[index]))),
+                ),
+                ),
                   const SizedBox(height: 20),
                   _HomeSection(title: 'Popular Now in Sri Lanka', events: docs),
                   _HomeSection(
@@ -108,7 +98,10 @@ class _HomeSection extends StatelessWidget {
       Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
         Text(title,
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-        TextButton(onPressed: () {}, child: const Text('See All')),
+        TextButton(
+          onPressed: () => Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const SearchScreen())),
+          child: const Text('See All')),
       ]),
       SizedBox(
         height: 184,
@@ -171,6 +164,48 @@ class _HomeSection extends StatelessWidget {
         ),
       ),
     ]);
+  }
+}
+
+class _HomeHero extends StatelessWidget {
+  final ValueChanged<String> onSearch;
+  const _HomeHero({required this.onSearch});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 190,
+      child: Stack(fit: StackFit.expand, children: [
+        Image.asset('assets/images/home_hero.jpg', fit: BoxFit.cover),
+        ColoredBox(color: Colors.black.withValues(alpha: .28)),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(18, 28, 18, 18),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Hello, $userName!',
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700)),
+            const Text('Ready to explore Sri Lanka?',
+                style: TextStyle(color: Colors.white, fontSize: 12)),
+            const Spacer(),
+            TextField(
+                onChanged: onSearch,
+                decoration: InputDecoration(
+                    hintText: 'Search events, workshops, festivals...',
+                    prefixIcon: const Icon(Icons.search, size: 20),
+                    suffixIcon: const Icon(Icons.tune, size: 19),
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding:
+                        const EdgeInsets.symmetric(vertical: 10),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide.none))),
+          ]),
+        ),
+      ]),
+    );
   }
 }
 

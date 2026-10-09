@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import '../services/db.dart';
 import '../theme/app_theme.dart';
 import 'admin_review_checklist_screen.dart';
+import '../widgets/event_image.dart';
+import 'event_gallery_screen.dart';
+import '../widgets/admin_brand_bar.dart';
 
 class AdminPortalScreen extends StatefulWidget {
   const AdminPortalScreen({super.key});
@@ -46,12 +49,27 @@ class _AdminPortalScreenState extends State<AdminPortalScreen> {
   }
 }
 
-class AdminDashboardScreen extends StatelessWidget {
+class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
 
   @override
+  State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
+}
+
+class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
+  final search = TextEditingController();
+  String status = 'All statuses';
+
+  @override
+  void dispose() {
+    search.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Authority Dashboard')),
+        backgroundColor: const Color(0xfffbfaf7),
+        appBar: const AdminBrandBar(title: 'Event Approvals'),
         body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
           stream: Db.adminEvents(),
           builder: (context, snapshot) {
@@ -63,34 +81,33 @@ class AdminDashboardScreen extends StatelessWidget {
               return const Center(child: CircularProgressIndicator());
             }
             final docs = snapshot.data!.docs;
-            final pending = _count(docs, 'pending');
+            final query = search.text.toLowerCase();
+            final filtered = docs.where((doc) {
+              final data = doc.data();
+              final matchesStatus = status == 'All statuses' ||
+                data['status'] == status.toLowerCase();
+              final text =
+                '${data['title'] ?? ''} ${data['organizerName'] ?? ''}'
+                  .toLowerCase();
+              return matchesStatus && text.contains(query);
+            }).toList();
             return ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
               children: [
-                Text(
-                    'Welcome Back, ${FirebaseAuth.instance.currentUser?.displayName ?? 'Officer'}',
-                    style: Theme.of(context).textTheme.headlineSmall),
-                const SizedBox(height: 8),
-                Text(
-                    'You have $pending pending event submissions awaiting action.'),
-                const SizedBox(height: 12),
-                const TextField(
-                    decoration: InputDecoration(
-                        prefixIcon: Icon(Icons.search),
-                        hintText: 'Search events or organizers',
-                        border: OutlineInputBorder())),
-                const SizedBox(height: 20),
+              Text('Review and manage event submissions before public publication.',
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+              const SizedBox(height: 14),
                 GridView.count(
                     crossAxisCount: 2,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    mainAxisExtent: 132,
+                crossAxisSpacing: 8,
+                mainAxisSpacing: 8,
+                mainAxisExtent: 68,
                     children: [
                       _StatCard(
                           label: 'Pending',
-                          value: pending,
+                    value: _count(docs, 'pending'),
                           color: AppColors.warning),
                       _StatCard(
                           label: 'Approved',
@@ -105,12 +122,40 @@ class AdminDashboardScreen extends StatelessWidget {
                           value: docs.length,
                           color: AppColors.info),
                     ]),
-                const SizedBox(height: 24),
-                Text('Recent activity',
-                    style: Theme.of(context).textTheme.titleLarge),
+                      const SizedBox(height: 16),
+                      const Text('Search',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 8),
-                if (docs.isEmpty) const Text('No submissions yet.'),
-                for (final doc in docs.take(5)) _ActivityTile(data: doc.data()),
+                      TextField(
+                        controller: search,
+                        onChanged: (_) => setState(() {}),
+                        decoration: const InputDecoration(
+                          prefixIcon: Icon(Icons.search),
+                          hintText: 'Search events or organizers',
+                          isDense: true,
+                          border: OutlineInputBorder())),
+                      const SizedBox(height: 10),
+                      DropdownButtonFormField<String>(
+                        initialValue: status,
+                        isDense: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Status', border: OutlineInputBorder()),
+                        items: const [
+                          'All statuses',
+                          'Pending',
+                          'Approved',
+                          'Rejected',
+                          'Changes_requested'
+                        ].map((value) => DropdownMenuItem(
+                          value: value, child: Text(value))).toList(),
+                        onChanged: (value) => setState(() => status = value!)),
+                      const SizedBox(height: 12),
+                      Text('${filtered.length} submissions',
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 6),
+                      if (filtered.isEmpty) const Text('No submissions found.'),
+                      for (final doc in filtered)
+                        _DashboardSubmissionCard(doc: doc),
               ],
             );
           },
@@ -120,6 +165,75 @@ class AdminDashboardScreen extends StatelessWidget {
   static int _count(List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
           String status) =>
       docs.where((doc) => doc.data()['status'] == status).length;
+}
+
+class _DashboardSubmissionCard extends StatelessWidget {
+  final QueryDocumentSnapshot<Map<String, dynamic>> doc;
+  const _DashboardSubmissionCard({required this.doc});
+
+  @override
+  Widget build(BuildContext context) {
+    final data = doc.data();
+    final status = data['status']?.toString() ?? 'pending';
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            EventImage(
+                url: data['imageUrl']?.toString(),
+                width: 54,
+                height: 54,
+                borderRadius: const BorderRadius.all(Radius.circular(6))),
+            const SizedBox(width: 10),
+            Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                  Text(data['title'] ?? 'Untitled event',
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                  Text('by ${data['organizerName'] ?? 'Unknown organizer'}',
+                      style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                  const SizedBox(height: 4),
+                  Chip(
+                      label: Text(_statusLabel(status)),
+                      visualDensity: VisualDensity.compact),
+                ])),
+          ]),
+          const SizedBox(height: 7),
+          Text('CATEGORY  ${data['category'] ?? 'Uncategorized'}',
+              style: const TextStyle(fontSize: 10, color: AppColors.primary)),
+          Text('EVENT DATE  ${data['date'] ?? ''}',
+              style: const TextStyle(fontSize: 10, color: Colors.black54)),
+          Text('VENUE / LOCATION  ${data['location'] ?? ''}',
+              style: const TextStyle(fontSize: 10, color: Colors.black54)),
+          const SizedBox(height: 6),
+          Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton.icon(
+                  onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => AdminSubmissionDetailsScreen(
+                              id: doc.id, data: data))),
+                  icon: const Icon(Icons.arrow_forward, size: 14),
+                  label: const Text('View Details'),
+                  style: FilledButton.styleFrom(
+                      minimumSize: const Size(0, 34),
+                      padding: const EdgeInsets.symmetric(horizontal: 12)))),
+        ]),
+      ),
+    );
+  }
+
+  String _statusLabel(String status) => switch (status) {
+        'pending' => 'Pending Review',
+        'approved' => 'Approved',
+        'rejected' => 'Rejected',
+        'changes_requested' => 'Changes Requested',
+        _ => status,
+      };
 }
 
 class _StatCard extends StatelessWidget {
@@ -141,20 +255,6 @@ class _StatCard extends StatelessWidget {
             Text(label),
           ]),
         ),
-      );
-}
-
-class _ActivityTile extends StatelessWidget {
-  final Map<String, dynamic> data;
-  const _ActivityTile({required this.data});
-
-  @override
-  Widget build(BuildContext context) => ListTile(
-        contentPadding: EdgeInsets.zero,
-        leading: const Icon(Icons.article_outlined),
-        title: Text(data['title'] ?? 'Untitled event'),
-        subtitle: Text(
-            '${data['organizerName'] ?? 'Unknown organizer'} • ${data['status'] ?? 'pending'}'),
       );
 }
 
@@ -250,6 +350,12 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
           margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
           child: ListTile(
             contentPadding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+            leading: EventImage(
+                url: data['imageUrl']?.toString(),
+                width: 56,
+                height: 56,
+                borderRadius:
+                    const BorderRadius.all(Radius.circular(6))),
             title: Text(data['title'] ?? 'Untitled event',
                 maxLines: 2, overflow: TextOverflow.ellipsis),
             subtitle: Padding(
@@ -257,7 +363,6 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                 child: Text(
                     'by ${data['organizerName'] ?? 'Unknown organizer'}\n${data['date'] ?? ''} • ${data['location'] ?? ''}')),
             isThreeLine: true,
-            leading: _StatusIcon(status: status),
             trailing: PopupMenuButton<String>(
               tooltip: 'Event actions',
               onSelected: (action) => _handleAction(doc, action),
@@ -281,9 +386,9 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
   Widget build(BuildContext context) => DefaultTabController(
         length: statuses.length,
         child: Scaffold(
-          appBar: AppBar(
-            title: const Text('Event Approvals'),
-            bottom: const TabBar(
+          appBar: const AdminBrandBar(
+            title: 'Event Approvals',
+            bottom: TabBar(
               isScrollable: true,
               tabs: [
                 Tab(text: 'Pending'),
@@ -448,18 +553,6 @@ Color _decisionColor(String action) => switch (action) {
       _ => AppColors.secondaryText,
     };
 
-class _StatusIcon extends StatelessWidget {
-  final String status;
-  const _StatusIcon({required this.status});
-
-  @override
-  Widget build(BuildContext context) => CircleAvatar(
-        radius: 18,
-        backgroundColor: _statusColor(status).withValues(alpha: 0.15),
-        child: Icon(_statusIcon(status), size: 19, color: _statusColor(status)),
-      );
-}
-
 class AdminSubmissionDetailsScreen extends StatefulWidget {
   final String id;
   final Map<String, dynamic> data;
@@ -522,10 +615,20 @@ class _AdminSubmissionDetailsScreenState
   }
 
   Future<void> decide(String status) async {
-    if (status == 'approved') {
-      await _submitDecision(status, '', '');
-      return;
-    }
+    final category = status == 'approved'
+        ? 'approval'
+        : status == 'rejected'
+            ? 'rejection'
+            : 'changes';
+    final checklistSnapshot = await Db.reviewChecklistItems().first;
+    if (!mounted) return;
+    final checklistItems = checklistSnapshot.docs
+        .where((doc) =>
+            (doc.data()['category']?.toString() ?? 'approval') == category)
+        .map((doc) => doc.data()['title']?.toString() ?? '')
+        .where((title) => title.isNotEmpty)
+        .toList();
+    final selectedChecklist = <String>{};
     final feedback = TextEditingController();
     final internalNotes = TextEditingController();
     final reasons = <String>{};
@@ -553,6 +656,22 @@ class _AdminSubmissionDetailsScreenState
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Text(
+                        '${status == 'approved' ? 'Approval' : status == 'rejected' ? 'Rejection' : 'Changes requested'} checklist',
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                    if (checklistItems.isEmpty)
+                      const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8),
+                          child: Text('No checklist items configured.')),
+                    for (final item in checklistItems)
+                      CheckboxListTile(
+                          value: selectedChecklist.contains(item),
+                          title: Text(item),
+                          contentPadding: EdgeInsets.zero,
+                          onChanged: (value) => setDialogState(() =>
+                              value == true
+                                  ? selectedChecklist.add(item)
+                                  : selectedChecklist.remove(item))),
                     if (needsCategories) ...[
                       const Text('Reason categories'),
                       for (final reason in reasonLabels)
@@ -590,27 +709,32 @@ class _AdminSubmissionDetailsScreenState
                 onPressed: () => Navigator.pop(dialogContext, false),
                 child: const Text('Cancel')),
             FilledButton(
-                onPressed: status != 'approved' && feedback.text.trim().isEmpty
-                    ? null
-                    : () => Navigator.pop(dialogContext, true),
+              onPressed: selectedChecklist.length != checklistItems.length ||
+                  (status != 'approved' && feedback.text.trim().isEmpty)
+                ? null
+                : () => Navigator.pop(dialogContext, true),
                 child: const Text('Submit decision')),
           ],
         );
       }),
     );
     if (result != true) return;
-    await _submitDecision(
-        status, feedback.text.trim(), internalNotes.text.trim());
+    await _submitDecision(status, feedback.text.trim(),
+        internalNotes.text.trim(), selectedChecklist.toList());
   }
 
   Future<void> _submitDecision(
-      String status, String feedback, String internalNotes) async {
+      String status,
+      String feedback,
+      String internalNotes,
+      List<String> checklistItems) async {
     try {
       await Db.reviewEvent(
           eventId: widget.id,
           status: status,
           feedback: feedback,
-          internalNotes: internalNotes);
+          internalNotes: internalNotes,
+          checklistItems: checklistItems);
       final savedEvent = await Db.eventOnce(widget.id);
       final savedStatus =
           savedEvent.data()?['status']?.toString().trim().toLowerCase();
@@ -660,7 +784,9 @@ class _AdminSubmissionDetailsScreenState
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Submission Details')),
+        appBar: AdminBrandBar(
+          title: 'Submission Details',
+          onBack: () => Navigator.pop(context)),
         body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
           stream: Db.event(widget.id),
           builder: (context, snapshot) {
@@ -676,6 +802,9 @@ class _AdminSubmissionDetailsScreenState
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                EventImage(
+                    url: event['imageUrl']?.toString(), height: 190),
+                const SizedBox(height: 12),
                 Text(event['title'] ?? 'Untitled event',
                     style: Theme.of(context).textTheme.headlineSmall),
                 const SizedBox(height: 8),
@@ -697,6 +826,16 @@ class _AdminSubmissionDetailsScreenState
                         'Organizer: ${event['organizerName'] ?? 'Unknown'}')),
                 const Divider(),
                 Text(event['description'] ?? 'No description provided.'),
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => EventGalleryScreen(
+                        eventId: widget.id,
+                        eventTitle: event['title'] ?? 'Event',
+                        mode: GalleryMode.admin))),
+                  icon: const Icon(Icons.photo_library_outlined),
+                  label: const Text('Review event gallery')),
                 const SizedBox(height: 20),
                 Text('Decision history',
                     style: Theme.of(context).textTheme.titleMedium),
@@ -861,7 +1000,7 @@ class AdminDecisionConfirmationScreen extends StatelessWidget {
             ? Colors.red
             : Colors.orange;
     return Scaffold(
-      appBar: AppBar(title: const Text('Decision Complete')),
+      appBar: const AdminBrandBar(title: 'Decision Complete'),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -900,9 +1039,26 @@ class AdminNotificationsScreen extends StatefulWidget {
 class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
   int filter = 0;
 
+  Future<void> _openNotification(
+      BuildContext context, QueryDocumentSnapshot<Map<String, dynamic>> doc) async {
+    await Db.markAdminNotificationRead(doc.id);
+    final data = doc.data();
+    if (data['action'] == 'gallery_submitted' &&
+        data['eventId']?.toString().isNotEmpty == true &&
+        context.mounted) {
+      await Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (_) => EventGalleryScreen(
+                  eventId: data['eventId'].toString(),
+                  eventTitle: data['eventTitle']?.toString() ?? 'Event',
+                  mode: GalleryMode.admin)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Admin Notifications')),
+        appBar: const AdminBrandBar(title: 'Notifications'),
         body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
           stream: Db.adminNotifications(),
           builder: (context, snapshot) {
@@ -914,7 +1070,8 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
             if (!snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
             }
-            final docs = snapshot.data!.docs.where((doc) {
+            final allDocs = snapshot.data!.docs;
+            final docs = allDocs.where((doc) {
               if (filter == 0) return true;
               return filter == 1 && doc.data()['read'] != true || filter == 2;
             }).toList();
@@ -922,6 +1079,14 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
               return const Center(child: Text('No authority notifications'));
             }
             return Column(children: [
+              if (allDocs.any((doc) => doc.data()['read'] != true))
+                Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                        onPressed: () =>
+                            Db.markAllAdminNotificationsRead(allDocs),
+                        icon: const Icon(Icons.done_all, size: 18),
+                        label: const Text('Mark all read'))),
               Padding(
                   padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
                   child: SegmentedButton<int>(
@@ -946,11 +1111,13 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                           title: Text(doc.data()['title'] ?? 'Notification',
                               style:
                                   const TextStyle(fontWeight: FontWeight.w700)),
-                          subtitle: Text(doc.data()['message'] ?? ''),
+                            subtitle: Text(
+                              '${doc.data()['eventTitle'] ?? 'Event'}\n${doc.data()['message'] ?? ''}'),
+                              onTap: () => _openNotification(context, doc),
                           trailing: doc.data()['read'] == true
                               ? null
-                              : const Icon(Icons.fiber_manual_record,
-                                  color: Colors.amber, size: 12)))
+                              : const Icon(Icons.mark_email_unread_outlined,
+                                color: Colors.amber, size: 18)))
               ])),
             ]);
           },
@@ -965,7 +1132,7 @@ class AdminProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     return Scaffold(
-      appBar: AppBar(title: const Text('Admin Profile')),
+      appBar: const AdminBrandBar(title: 'Admin Profile'),
       body: ListView(padding: const EdgeInsets.all(16), children: [
         const CircleAvatar(
             radius: 36, child: Icon(Icons.admin_panel_settings, size: 36)),
@@ -991,6 +1158,13 @@ class AdminProfileScreen extends StatelessWidget {
               subtitle: Text('Ceylona account'))
         ])),
         const SizedBox(height: 16),
+        OutlinedButton.icon(
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const AdminManagementScreen())),
+          icon: const Icon(Icons.manage_accounts_outlined),
+          label: const Text('Manage authority officers')),
         const Text('Security & preferences',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
         const SizedBox(height: 6),
@@ -1015,6 +1189,88 @@ class AdminProfileScreen extends StatelessWidget {
       ]),
     );
   }
+}
+
+class AdminManagementScreen extends StatelessWidget {
+  const AdminManagementScreen({super.key});
+
+  Future<void> _add(BuildContext context) async {
+    final userId = TextEditingController();
+    final email = TextEditingController();
+    final name = TextEditingController();
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Add authority officer'),
+        content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(
+              controller: userId,
+              decoration: const InputDecoration(
+                  labelText: 'Firebase Auth UID', border: OutlineInputBorder())),
+          const SizedBox(height: 10),
+          TextField(
+              controller: name,
+              decoration: const InputDecoration(
+                  labelText: 'Officer name', border: OutlineInputBorder())),
+          const SizedBox(height: 10),
+          TextField(
+              controller: email,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                  labelText: 'Officer email', border: OutlineInputBorder())),
+        ])),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Add officer')),
+        ],
+      ),
+    );
+    if (saved != true || userId.text.trim().isEmpty) return;
+    await Db.addAdmin(
+        userId: userId.text, email: email.text, name: name.text);
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: const AdminBrandBar(title: 'Authority Officers'),
+        floatingActionButton: FloatingActionButton.extended(
+            onPressed: () => _add(context),
+            icon: const Icon(Icons.person_add_alt_1),
+            label: const Text('Add officer')),
+        body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: Db.adminUsers(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            return ListView(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+                children: [
+                  const Text(
+                      'Add the Firebase Auth UID of an existing account to grant authority access.'),
+                  const SizedBox(height: 12),
+                  for (final doc in snapshot.data!.docs)
+                    Card(
+                        child: ListTile(
+                            leading: const Icon(Icons.admin_panel_settings),
+                            title: Text(doc.data()['name'] ?? doc.id),
+                            subtitle: Text(
+                                '${doc.data()['email'] ?? ''}\nUID: ${doc.id}'),
+                            trailing: doc.id == uid
+                                ? null
+                                : IconButton(
+                                    tooltip: 'Remove officer',
+                                    icon: const Icon(Icons.delete_outline),
+                                    onPressed: () => Db.removeAdmin(doc.id))))
+                ]);
+          },
+        ),
+      );
 }
 
 class _StatusBadge extends StatelessWidget {
@@ -1050,10 +1306,3 @@ Color _statusColor(String status) => switch (status) {
       _ => Colors.blue,
     };
 
-IconData _statusIcon(String status) => switch (status) {
-      'approved' => Icons.verified,
-      'suspended' => Icons.pause_circle,
-      'rejected' => Icons.cancel,
-      'changes_requested' => Icons.edit_note,
-      _ => Icons.pending,
-    };

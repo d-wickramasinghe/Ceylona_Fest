@@ -2,21 +2,27 @@ import 'package:flutter/material.dart';
 import '../services/db.dart';
 import 'event_details_screen.dart';
 import 'calendar_reminders_screen.dart';
+import '../widgets/seeker_page_header.dart';
 
 class SavedScreen extends StatelessWidget {
   const SavedScreen({super.key});
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Saved Events'), actions: [
-          IconButton(
-              tooltip: 'Calendar & reminders',
-              icon: const Icon(Icons.calendar_month),
-              onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const CalendarRemindersScreen())))
-        ]),
-        body: StreamBuilder(
+        backgroundColor: const Color(0xfffbfaf7),
+        body: Column(children: [
+          SeekerPageHeader(
+              title: 'Saved Events',
+              subtitle: 'Keep your next experiences close',
+              actions: [
+                IconButton(
+                    tooltip: 'Calendar & reminders',
+                    icon: const Icon(Icons.calendar_month),
+                    onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const CalendarRemindersScreen())))
+              ]),
+          Expanded(child: StreamBuilder(
           stream: Db.saved(),
           builder: (c, s) {
             if (!s.hasData) {
@@ -58,6 +64,7 @@ class SavedScreen extends StatelessWidget {
                     )
                 ]);
           },
-        ),
+        )),
+        ]),
       );
 }

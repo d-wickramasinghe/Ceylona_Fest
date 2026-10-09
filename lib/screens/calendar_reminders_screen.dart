@@ -6,6 +6,8 @@ import '../services/db.dart';
 import '../services/event_utils.dart';
 import '../services/notifications.dart';
 import '../widgets/ceylona_bottom_navigation.dart';
+import '../widgets/event_image.dart';
+import '../widgets/seeker_page_header.dart';
 
 class CalendarRemindersScreen extends StatefulWidget {
   final String? eventId;
@@ -32,19 +34,18 @@ class _CalendarRemindersScreenState extends State<CalendarRemindersScreen> {
     }
   }
 
-  Future<void> _updateReminder(
-      String eventId, Map<String, dynamic> event, int minutesBefore) async {
-    final eventTime = parseEventDateTime(event);
-    if (eventTime == null) return;
-    final reminderAt = eventTime.subtract(Duration(minutes: minutesBefore));
-    await Db.saveReminder(eventId, minutesBefore, reminderAt);
+  Future<void> _saveReminder(
+      Map<String, dynamic> event, DateTime reminderAt) async {
+    final eventId = event['_id'] as String;
+    await Db.setReminder(
+        eventId, event['title']?.toString() ?? 'Event', reminderAt);
     await NotificationsService.instance.scheduleReminder(
         eventId: eventId,
         title: event['title'] ?? 'Your event is starting',
         reminderAt: reminderAt);
     if (mounted) {
       ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Reminder updated')));
+          .showSnackBar(const SnackBar(content: Text('Reminder saved')));
     }
   }
 
@@ -57,6 +58,112 @@ class _CalendarRemindersScreenState extends State<CalendarRemindersScreen> {
       );
     }
   }
+
+  Future<void> _openReminderSheet(
+      Map<String, dynamic> event, DocumentSnapshot<Map<String, dynamic>>? doc) async {
+    final existingTime = doc != null && doc.exists
+      ? _reminderTime(doc.data())
+      : null;
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text(event['title']?.toString() ?? 'Event',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            if (existingTime != null) ...[
+              const SizedBox(height: 8),
+              Text('Current reminder: ${_formatTime(existingTime)}'),
+            ],
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(sheetContext, 'edit'),
+              icon: Icon(existingTime == null ? Icons.add_alert : Icons.edit),
+              label: Text(existingTime == null ? 'Set Reminder' : 'Edit Reminder'),
+            ),
+            if (existingTime != null)
+              TextButton.icon(
+                onPressed: () => Navigator.pop(sheetContext, 'delete'),
+                icon: const Icon(Icons.delete_outline),
+                label: const Text('Remove Reminder'),
+              ),
+          ]),
+        ),
+      ),
+    );
+    if (!mounted || action == null) return;
+    if (action == 'delete') {
+      await _removeReminder(event['_id'] as String);
+      return;
+    }
+    final now = DateTime.now();
+    final initialDate = existingTime != null && existingTime.isBefore(now)
+        ? now
+        : existingTime ?? parseEventDateTime(event) ?? now;
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: now,
+      lastDate: DateTime(2035),
+    );
+    if (!mounted || pickedDate == null) return;
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: existingTime == null
+          ? TimeOfDay.fromDateTime(parseEventDateTime(event) ?? DateTime.now())
+          : TimeOfDay.fromDateTime(existingTime),
+    );
+    if (pickedTime == null) return;
+    await _saveReminder(
+        event,
+        DateTime(pickedDate.year, pickedDate.month, pickedDate.day,
+            pickedTime.hour, pickedTime.minute));
+  }
+
+  Future<void> _showReminderDetails(
+      Map<String, dynamic> reminder, Map<String, dynamic>? event) async {
+    final reminderTime = _reminderTime(reminder);
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(event?['title'] ?? reminder['eventTitle'] ?? 'Event'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          if (event?['location'] != null)
+            ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.place_outlined),
+                title: Text(event!['location'].toString())),
+          if (event?['date'] != null)
+            ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.event_outlined),
+                title: Text('${event!['date']} ${event['time'] ?? ''}')),
+          if (reminderTime != null)
+            ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.notifications_active_outlined),
+                title: Text('Reminder: ${_formatTime(reminderTime)}')),
+          if (event?['description'] != null)
+            Text(event!['description'].toString()),
+        ]),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Close')),
+        ],
+      ),
+    );
+  }
+
+  static DateTime? _reminderTime(Map<String, dynamic>? data) {
+    final value = data?['time'];
+    if (value is Timestamp) return value.toDate();
+    return value is DateTime ? value : null;
+  }
+
+  static String _formatTime(DateTime value) =>
+      '${value.year}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')} ${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
 
   Future<void> _addToCalendar(Map<String, dynamic> event) async {
     final eventTime = parseEventDateTime(event);
@@ -82,15 +189,14 @@ class _CalendarRemindersScreenState extends State<CalendarRemindersScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-              onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.arrow_back_ios_new, size: 18)),
-          title: const Text('Calendar',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-        ),
         bottomNavigationBar: const CeylonaBottomNavigation(selectedIndex: 2),
-        body: StreamBuilder(
+        backgroundColor: const Color(0xfffbfaf7),
+        body: Column(children: [
+          SeekerPageHeader(
+              title: 'My Calendar',
+              subtitle: 'Events and reminders in one place',
+              onBack: () => Navigator.pop(context)),
+          Expanded(child: StreamBuilder(
           stream: Db.saved(),
           builder: (context, snapshot) {
             if (!snapshot.hasData) {
@@ -112,10 +218,17 @@ class _CalendarRemindersScreenState extends State<CalendarRemindersScreen> {
             final selected = byDay[DateTime(
                     selectedDay.year, selectedDay.month, selectedDay.day)] ??
                 [];
-            final reminders = events
-                .where((event) => event['reminderMinutesBefore'] != null)
-                .toList();
-            return ListView(
+            return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: Db.allReminders(),
+              builder: (context, reminderSnapshot) {
+                if (!reminderSnapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final reminderDocs = reminderSnapshot.data!.docs;
+                final remindersById = {
+                  for (final doc in reminderDocs) doc.id: doc,
+                };
+                return ListView(
                 padding: const EdgeInsets.fromLTRB(14, 2, 14, 14),
                 children: [
                   Container(
@@ -170,31 +283,38 @@ class _CalendarRemindersScreenState extends State<CalendarRemindersScreen> {
                           TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 8),
                   if (selected.isEmpty) const _EmptyEventCard(),
-                  for (final event in selected) _EventCard(event: event),
-                  const SizedBox(height: 10),
                   for (final event in selected)
-                    _ReminderCard(
+                    _EventCard(
                       event: event,
-                      onChanged: (minutesBefore) => _updateReminder(
-                          event['_id'] as String, event, minutesBefore),
-                      onRemove: event['reminderMinutesBefore'] == null
-                          ? null
-                          : () => _removeReminder(event['_id'] as String),
+                      onReminder: () => _openReminderSheet(
+                          event, remindersById[event['_id'] as String]),
                     ),
                   const SizedBox(height: 14),
                   const Text('My Reminders',
                       style:
                           TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 8),
-                  if (reminders.isEmpty)
+                  if (reminderDocs.isEmpty)
                     const _EmptyReminderCard()
                   else
-                    for (final event in reminders)
+                    for (final reminder in reminderDocs)
                       _ReminderSummaryCard(
-                        event: event,
-                        onChanged: (minutesBefore) => _updateReminder(
-                            event['_id'] as String, event, minutesBefore),
-                        onRemove: () => _removeReminder(event['_id'] as String),
+                        reminder: reminder.data(),
+                        event: events.cast<Map<String, dynamic>?>().firstWhere(
+                            (event) => event?['_id'] == reminder.id,
+                            orElse: () => null),
+                        onEdit: events.any((event) => event['_id'] == reminder.id)
+                          ? () => _openReminderSheet(
+                            events.firstWhere(
+                              (event) => event['_id'] == reminder.id),
+                            reminder)
+                          : null,
+                        onOpenDetails: () => _showReminderDetails(
+                            reminder.data(),
+                            events.cast<Map<String, dynamic>?>().firstWhere(
+                                (event) => event?['_id'] == reminder.id,
+                                orElse: () => null)),
+                        onRemove: () => _removeReminder(reminder.id),
                       ),
                   const SizedBox(height: 10),
                   SizedBox(
@@ -211,8 +331,11 @@ class _CalendarRemindersScreenState extends State<CalendarRemindersScreen> {
                               style: TextStyle(
                                   fontSize: 12, fontWeight: FontWeight.w700)))),
                 ]);
+              },
+            );
           },
-        ),
+        )),
+        ]),
       );
 }
 
@@ -231,62 +354,94 @@ class _EmptyEventCard extends StatelessWidget {
 
 class _EventCard extends StatelessWidget {
   final Map<String, dynamic> event;
-  const _EventCard({required this.event});
+  final VoidCallback onReminder;
+  const _EventCard({required this.event, required this.onReminder});
+
   @override
-  Widget build(BuildContext context) {
-    final date = parseEventDateTime(event);
-    return Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border.all(color: const Color(0xffd9dde5)),
-            borderRadius: BorderRadius.circular(8)),
-        child: Row(children: [
-          Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                  color: const Color(0xffe9edf3),
-                  borderRadius: BorderRadius.circular(5)),
-              child: const Icon(Icons.image_outlined,
-                  size: 17, color: Color(0xff667085))),
-          const SizedBox(width: 9),
-          Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                Text(event['title'] ?? 'Event',
-                    style: const TextStyle(
-                        fontSize: 10, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 3),
-                Text(event['location'] ?? 'Location',
-                    style:
-                        const TextStyle(fontSize: 8, color: Color(0xff667085))),
-                Text(
-                    '${date?.day ?? ''} ${_month(date?.month)} ${date?.year ?? ''} • ${event['time'] ?? ''}',
-                    style:
-                        const TextStyle(fontSize: 8, color: Color(0xff667085)))
-              ]))
-        ]));
+  Widget build(BuildContext context) => StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+    stream: Db.reminderForEvent(event['_id'] as String),
+    builder: (context, snapshot) {
+      final reminder = snapshot.data;
+        final reminderTime = reminder != null && reminder.exists
+          ? _reminderDate(reminder.data()?['time'])
+        : null;
+      final date = parseEventDateTime(event);
+      return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: const Color(0xffd9dde5)),
+        borderRadius: BorderRadius.circular(8)),
+      child: Row(children: [
+          EventImage(
+            url: event['imageUrl']?.toString(),
+            width: 42,
+            height: 42,
+            borderRadius:
+              const BorderRadius.all(Radius.circular(5))),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+          Text(event['title'] ?? 'Event',
+            style: const TextStyle(
+              fontSize: 10, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 3),
+          Text(event['location'] ?? 'Location',
+            style: const TextStyle(
+              fontSize: 8, color: Color(0xff667085))),
+          Text(
+            '${date?.day ?? ''} ${_month(date?.month)} ${date?.year ?? ''} • ${event['time'] ?? ''}',
+            style: const TextStyle(
+              fontSize: 8, color: Color(0xff667085))),
+          if (reminderTime != null)
+            Text('Reminder: ${_formatTime(reminderTime)}',
+              style: const TextStyle(
+                fontSize: 8, color: Color(0xff19a974))),
+          ])),
+        IconButton(
+          tooltip: reminderTime == null
+            ? 'Set reminder'
+            : 'Edit reminder',
+          icon: Icon(
+            reminderTime == null
+              ? Icons.notifications_none
+              : Icons.notifications_active,
+            color: reminderTime == null
+              ? const Color(0xff667085)
+              : const Color(0xff19a974)),
+          onPressed: onReminder),
+      ]),
+      );
+    },
+    );
+
+  static DateTime? _reminderDate(dynamic value) {
+  if (value is Timestamp) return value.toDate();
+  return value is DateTime ? value : null;
   }
 
-  String _month(int? month) => month == null
-      ? ''
-      : const [
-          'Jan',
-          'Feb',
-          'Mar',
-          'Apr',
-          'May',
-          'Jun',
-          'Jul',
-          'Aug',
-          'Sep',
-          'Oct',
-          'Nov',
-          'Dec'
-        ][month - 1];
+  static String _formatTime(DateTime value) =>
+    '${value.year}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')} ${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
+
+  static String _month(int? month) => month == null
+    ? ''
+    : const [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ][month - 1];
 }
 
 class _EmptyReminderCard extends StatelessWidget {
@@ -304,16 +459,25 @@ class _EmptyReminderCard extends StatelessWidget {
 }
 
 class _ReminderSummaryCard extends StatelessWidget {
-  final Map<String, dynamic> event;
-  final Future<void> Function(int minutesBefore) onChanged;
+  final Map<String, dynamic> reminder;
+  final Map<String, dynamic>? event;
+  final VoidCallback? onEdit;
+  final VoidCallback onOpenDetails;
   final VoidCallback onRemove;
   const _ReminderSummaryCard(
-      {required this.event, required this.onChanged, required this.onRemove});
+      {required this.reminder,
+      required this.event,
+      required this.onEdit,
+      required this.onOpenDetails,
+      required this.onRemove});
 
   @override
   Widget build(BuildContext context) {
-    final reminderAt = _reminderDate(event['reminderAt']);
-    return Container(
+    final reminderAt = _reminderDate(reminder['time']);
+    return InkWell(
+      onTap: onOpenDetails,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
@@ -326,9 +490,13 @@ class _ReminderSummaryCard extends StatelessWidget {
               size: 16, color: Color(0xff19a974)),
           const SizedBox(width: 8),
           Expanded(
-              child: Text(event['title'] ?? 'Event',
+                child: Text(event?['title'] ?? reminder['eventTitle'] ?? 'Event',
                   style: const TextStyle(
                       fontSize: 11, fontWeight: FontWeight.w700))),
+              IconButton(
+                tooltip: 'Edit reminder',
+                icon: const Icon(Icons.edit_outlined, size: 18),
+                onPressed: onEdit),
           IconButton(
               tooltip: 'Remove reminder',
               icon: const Icon(Icons.delete_outline, size: 18),
@@ -342,22 +510,8 @@ class _ReminderSummaryCard extends StatelessWidget {
               style: const TextStyle(fontSize: 9, color: Color(0xff667085)),
             ),
           ),
-        Padding(
-          padding: const EdgeInsets.only(left: 24),
-          child: DropdownButton<int>(
-            value: event['reminderMinutesBefore'] as int?,
-            isDense: true,
-            items: const [
-              DropdownMenuItem(value: 1440, child: Text('1 day before')),
-              DropdownMenuItem(value: 60, child: Text('1 hour before')),
-              DropdownMenuItem(value: 0, child: Text('At event time')),
-            ],
-            onChanged: (value) {
-              if (value != null) onChanged(value);
-            },
-          ),
-        ),
       ]),
+      ),
     );
   }
 
@@ -368,87 +522,4 @@ class _ReminderSummaryCard extends StatelessWidget {
   }
 
   static String _two(int value) => value.toString().padLeft(2, '0');
-}
-
-class _ReminderCard extends StatefulWidget {
-  final Map<String, dynamic>? event;
-  final Future<void> Function(int minutesBefore)? onChanged;
-  final VoidCallback? onRemove;
-  const _ReminderCard(
-      {required this.event, required this.onChanged, required this.onRemove});
-
-  @override
-  State<_ReminderCard> createState() => _ReminderCardState();
-}
-
-class _ReminderCardState extends State<_ReminderCard> {
-  int? selectedMinutes;
-
-  @override
-  void didUpdateWidget(covariant _ReminderCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.event?['_id'] != widget.event?['_id']) {
-      selectedMinutes = null;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) => Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: const Color(0xffd9dde5)),
-          borderRadius: BorderRadius.circular(8)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Reminder Settings',
-            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700)),
-        const SizedBox(height: 8),
-        Container(
-            height: 34,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            decoration: BoxDecoration(
-                border: Border.all(color: const Color(0xffd9dde5)),
-                borderRadius: BorderRadius.circular(5)),
-            child: Row(children: [
-              const Icon(Icons.schedule, size: 13, color: Color(0xff667085)),
-              const SizedBox(width: 6),
-              Expanded(
-                  child: DropdownButtonHideUnderline(
-                      child: DropdownButton<int>(
-                          isExpanded: true,
-                          value: selectedMinutes ??
-                              widget.event?['reminderMinutesBefore'] as int?,
-                          hint: const Text('Select reminder',
-                              style: TextStyle(
-                                  fontSize: 9, color: Color(0xff667085))),
-                          style: const TextStyle(
-                              fontSize: 9, color: Color(0xff667085)),
-                          items: const [
-                            DropdownMenuItem(
-                                value: 1440, child: Text('1 day before')),
-                            DropdownMenuItem(
-                                value: 60, child: Text('1 hour before')),
-                            DropdownMenuItem(
-                                value: 0, child: Text('At event time')),
-                          ],
-                          onChanged: widget.onChanged == null
-                              ? null
-                              : (value) {
-                                  if (value == null) return;
-                                  setState(() => selectedMinutes = value);
-                                  widget.onChanged!(value);
-                                }))),
-            ])),
-        const SizedBox(height: 7),
-        if (widget.event?['reminderMinutesBefore'] != null)
-          Row(children: [
-            const Expanded(
-              child: Text('Reminder set for this event',
-                  style: TextStyle(fontSize: 8, color: Color(0xff19a974))),
-            ),
-            TextButton(
-                onPressed: widget.onRemove,
-                child: const Text('Remove', style: TextStyle(fontSize: 10))),
-          ])
-      ]));
 }

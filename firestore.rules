@@ -31,6 +31,7 @@ service cloud.firestore {
             && request.resource.data.get('role', '') == 'organizer'
             && request.resource.data.get('organizationName', '') is string)
         );
+          allow delete: if signedIn() && request.auth.uid == userId;
 
       match /saved/{eventId} {
         allow read, write: if signedIn() && (request.auth.uid == userId || isAdmin());
@@ -41,11 +42,15 @@ service cloud.firestore {
         allow create: if isAdmin();
         allow delete: if signedIn() && request.auth.uid == userId;
       }
+
+      match /reminders/{reminderId} {
+        allow read, write: if signedIn() && request.auth.uid == userId;
+      }
     }
 
     match /admins/{adminId} {
-      allow read: if signedIn() && request.auth.uid == adminId;
-      allow write: if false;
+      allow read: if signedIn() && (request.auth.uid == adminId || isAdmin());
+      allow create, update, delete: if isAdmin();
 
       match /notifications/{notificationId} {
         allow read, update: if signedIn() && request.auth.uid == adminId;
@@ -69,7 +74,11 @@ service cloud.firestore {
         || (isOrganizer()
           && resource.data.organizerId == request.auth.uid
           && request.resource.data.organizerId == request.auth.uid
-          && request.resource.data.status in ['draft', 'pending', 'changes_requested']);
+          && (
+            request.resource.data.status in ['draft', 'pending', 'changes_requested']
+            || (resource.data.status == 'approved'
+              && request.resource.data.status == 'pending')
+          ));
       allow delete: if isAdmin()
         || (signedIn() && resource.data.organizerId == request.auth.uid);
 
@@ -83,6 +92,33 @@ service cloud.firestore {
       match /decision_log/{logId} {
         allow read, create: if isAdmin();
       }
+
+      match /gallery/{imageId} {
+        allow read: if isAdmin()
+          || (resource.data.status == 'approved' && signedIn())
+          || (signedIn() && resource.data.uploadedBy == request.auth.uid);
+        allow create: if isOrganizer()
+          && get(/databases/$(database)/documents/events/$(eventId)).data.organizerId == request.auth.uid
+          && request.resource.data.uploadedBy == request.auth.uid
+          && request.resource.data.status == 'pending';
+        allow update: if isAdmin()
+          || (isOrganizer()
+            && resource.data.uploadedBy == request.auth.uid
+            && request.resource.data.status == 'pending');
+        allow delete: if isAdmin()
+          || (signedIn() && resource.data.uploadedBy == request.auth.uid);
+      }
+    }
+
+    match /admin_notifications/{notificationId} {
+      allow read, update: if isAdmin();
+      allow create: if isOrganizer()
+        && request.resource.data.organizerId == request.auth.uid
+        && request.resource.data.action in [
+          'created', 'submitted', 'updated', 'updated_approved', 'deleted',
+          'gallery_submitted'
+        ];
+      allow delete: if isAdmin();
     }
   }
 }
