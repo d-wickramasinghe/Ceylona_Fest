@@ -21,12 +21,13 @@ class AdminBrandBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-        color: AppColors.primaryDark,
+        color: AppColors.background,
         child: AppBar(
-          backgroundColor: AppColors.primaryDark,
-          foregroundColor: Colors.white,
+          backgroundColor: AppColors.background,
+          foregroundColor: AppColors.primaryDark,
           surfaceTintColor: Colors.transparent,
-          elevation: 0,
+          elevation: 1,
+          shadowColor: AppColors.border,
           leading: onBack == null
               ? null
               : IconButton(
@@ -49,7 +50,7 @@ class AdminBrandBar extends StatelessWidget implements PreferredSizeWidget {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                         fontSize: 17,
-                        color: Colors.white,
+                        color: AppColors.primaryDark,
                         fontWeight: FontWeight.w700))),
           ]),
           actions: [

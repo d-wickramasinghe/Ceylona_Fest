@@ -19,12 +19,9 @@ class AdminPageIntro extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [AppColors.primaryDark, Color(0xff403321)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.border),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -32,10 +29,10 @@ class AdminPageIntro extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(11),
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: .18),
+                color: AppColors.primary.withValues(alpha: .14),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: AppColors.primary, size: 24),
+              child: Icon(icon, color: AppColors.primaryDark, size: 24),
             ),
             const SizedBox(width: 13),
             Expanded(
@@ -44,20 +41,20 @@ class AdminPageIntro extends StatelessWidget {
                 children: [
                   Text(eyebrow.toUpperCase(),
                       style: const TextStyle(
-                          color: AppColors.primary,
+                          color: AppColors.primaryDark,
                           fontSize: 10,
                           letterSpacing: 1.2,
                           fontWeight: FontWeight.w800)),
                   const SizedBox(height: 4),
                   Text(title,
                       style: const TextStyle(
-                          color: Colors.white,
+                          color: AppColors.primaryDark,
                           fontSize: 19,
                           fontWeight: FontWeight.w700)),
                   const SizedBox(height: 5),
                   Text(description,
                       style: const TextStyle(
-                          color: Color(0xffe7d9bc), height: 1.35)),
+                          color: AppColors.secondaryText, height: 1.35)),
                 ],
               ),
             ),

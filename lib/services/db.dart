@@ -472,19 +472,6 @@ class Db {
       });
   static Future<void> setStatus(String id, String status) =>
       _db.collection('events').doc(id).update({'status': status});
-  static Future<void> saveReviewChecklist(
-          String eventId, List<bool> checks, String notes) =>
-      _db.collection('events').doc(eventId).update({
-        'reviewChecklist': checks,
-        'reviewNotes': notes.trim(),
-        'reviewChecklistUpdatedAt': FieldValue.serverTimestamp(),
-      });
-  static Future<void> deleteReviewChecklist(String eventId) =>
-      _db.collection('events').doc(eventId).update({
-        'reviewChecklist': FieldValue.delete(),
-        'reviewNotes': FieldValue.delete(),
-        'reviewChecklistUpdatedAt': FieldValue.delete(),
-      });
   static Stream<QuerySnapshot<Map<String, dynamic>>> reviewChecklistItems() =>
       _db.collection('review_checklist_items').orderBy('createdAt').snapshots();
   static Future<void> addReviewChecklistItem(String title,

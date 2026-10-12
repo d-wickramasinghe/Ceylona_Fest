@@ -104,7 +104,7 @@ class _EventPoster extends StatelessWidget {
           child: DecoratedBox(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xFF1B1712), Color(0xFF9F6E18)],
+                colors: [AppColors.primary, Color(0xFFE6B84F)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -116,7 +116,7 @@ class _EventPoster extends StatelessWidget {
                   top: -40,
                   child: Icon(
                     Icons.wb_sunny_outlined,
-                    color: Colors.white.withValues(alpha: .16),
+                    color: AppColors.primaryDark.withValues(alpha: .14),
                     size: 210,
                   ),
                 ),
@@ -129,7 +129,7 @@ class _EventPoster extends StatelessWidget {
                       Text(
                         'SRI LANKA DAY',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: AppColors.primaryDark,
                           fontSize: 25,
                           fontWeight: FontWeight.w900,
                           letterSpacing: 1.4,
@@ -139,7 +139,7 @@ class _EventPoster extends StatelessWidget {
                       Text(
                         '24 OCTOBER 2026  ·  VIHARAMAHADEVI PARK',
                         style: TextStyle(
-                          color: Color(0xFFFFD76A),
+                          color: AppColors.primaryDark,
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                           letterSpacing: .5,

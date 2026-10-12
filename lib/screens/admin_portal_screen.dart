@@ -31,10 +31,10 @@ class _AdminPortalScreenState extends State<AdminPortalScreen> {
       child: Scaffold(
         body: pages[index],
         bottomNavigationBar: NavigationBar(
-          backgroundColor: AppColors.primaryDark,
-          indicatorColor: AppColors.primary.withValues(alpha: .2),
+          backgroundColor: AppColors.surface,
+          indicatorColor: AppColors.primary.withValues(alpha: .22),
           surfaceTintColor: Colors.transparent,
-          elevation: 8,
+          elevation: 2,
           height: 72,
           labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
           selectedIndex: index,
@@ -86,7 +86,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        backgroundColor: const Color(0xfffbfaf7),
+        backgroundColor: AppColors.background,
         appBar: const AdminBrandBar(title: 'Command centre'),
         body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
           stream: Db.adminEvents(),
@@ -115,24 +115,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 Container(
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [AppColors.primaryDark, Color(0xff403321)],
-                    ),
+                    color: AppColors.surface,
                     borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: AppColors.border),
                   ),
                   child: const Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Good to see you, Admin',
                           style: TextStyle(
-                              color: Colors.white,
+                              color: AppColors.primaryDark,
                               fontSize: 20,
                               fontWeight: FontWeight.w700)),
                       SizedBox(height: 6),
                       Text(
                           'Keep Ceylona events safe, accurate and ready to discover.',
                           style: TextStyle(
-                              color: Color(0xffe7d9bc), height: 1.35)),
+                              color: AppColors.secondaryText, height: 1.35)),
                     ],
                   ),
                 ),
@@ -659,53 +658,6 @@ class AdminSubmissionDetailsScreen extends StatefulWidget {
 class _AdminSubmissionDetailsScreenState
     extends State<AdminSubmissionDetailsScreen> {
   String? currentStatus;
-  final checks = <bool>[false, false, false, false, false, false];
-  final reviewNotes = TextEditingController();
-  bool checklistLoaded = false;
-  final labels = const [
-    'Event information is complete',
-    'Organizer and contact verified',
-    'Date and venue are valid',
-    'Description is clear and accurate',
-    'Media meets quality requirements',
-    'Policy compliance confirmed',
-  ];
-
-  @override
-  void dispose() {
-    reviewNotes.dispose();
-    super.dispose();
-  }
-
-  void _loadChecklist(Map<String, dynamic> event) {
-    if (checklistLoaded) return;
-    final saved = event['reviewChecklist'];
-    if (saved is List) {
-      for (var i = 0; i < checks.length && i < saved.length; i++) {
-        checks[i] = saved[i] == true;
-      }
-    }
-    reviewNotes.text = event['reviewNotes']?.toString() ?? '';
-    checklistLoaded = true;
-  }
-
-  Future<void> _saveChecklist() async {
-    await Db.saveReviewChecklist(widget.id, checks, reviewNotes.text);
-    if (mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Checklist saved')));
-    }
-  }
-
-  Future<void> _deleteChecklist() async {
-    await Db.deleteReviewChecklist(widget.id);
-    setState(() {
-      for (var i = 0; i < checks.length; i++) {
-        checks[i] = false;
-      }
-      reviewNotes.clear();
-    });
-  }
 
   Future<void> decide(String status) async {
     final category = status == 'approved'
@@ -887,7 +839,6 @@ class _AdminSubmissionDetailsScreenState
               return const Center(child: CircularProgressIndicator());
             }
             final event = snapshot.data!.data() ?? widget.data;
-            _loadChecklist(event);
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
@@ -967,36 +918,6 @@ class _AdminSubmissionDetailsScreenState
                   },
                 ),
                 const Divider(height: 28),
-                Text(
-                    'Review checklist: ${checks.where((value) => value).length}/6',
-                    style: Theme.of(context).textTheme.titleMedium),
-                for (var index = 0; index < labels.length; index++)
-                  CheckboxListTile(
-                      value: checks[index],
-                      title: Text(labels[index]),
-                      onChanged: (value) =>
-                          setState(() => checks[index] = value ?? false)),
-                TextField(
-                    controller: reviewNotes,
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                        labelText: 'Checklist notes',
-                        border: OutlineInputBorder())),
-                const SizedBox(height: 8),
-                Row(children: [
-                  Expanded(
-                      child: FilledButton.icon(
-                          onPressed: _saveChecklist,
-                          icon: const Icon(Icons.save_outlined),
-                          label: const Text('Save checklist'))),
-                  const SizedBox(width: 8),
-                  IconButton(
-                      tooltip: 'Clear checklist',
-                      onPressed: _deleteChecklist,
-                      icon:
-                          const Icon(Icons.delete_outline, color: Colors.red)),
-                ]),
-                const SizedBox(height: 12),
                 if ((currentStatus ?? event['status']) == 'pending')
                   Row(children: [
                     Expanded(
@@ -1244,8 +1165,9 @@ class AdminProfileScreen extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: AppColors.primaryDark,
+            color: AppColors.surface,
             borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.border),
           ),
           child: const Row(children: [
             CircleAvatar(
@@ -1257,7 +1179,7 @@ class AdminProfileScreen extends StatelessWidget {
             Expanded(
                 child: Text('Administrator workspace',
                     style: TextStyle(
-                        color: Colors.white,
+                        color: AppColors.primaryDark,
                         fontSize: 17,
                         fontWeight: FontWeight.w700))),
           ]),
