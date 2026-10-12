@@ -50,31 +50,6 @@ class _OrganizerScheduleEditorScreenState
     }
   }
 
-  Future<void> _setFacility(BuildContext context, _FacilityDefinition facility,
-      String? current) async {
-    final note = TextEditingController(text: current);
-    final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-                title: Text(facility.title),
-                content: TextField(
-                    controller: note,
-                    maxLines: 3,
-                    decoration:
-                        const InputDecoration(labelText: 'Description')),
-                actions: [
-                  TextButton(
-                      onPressed: () => Navigator.pop(dialogContext),
-                      child: const Text('Cancel')),
-                  FilledButton(
-                      onPressed: () => Navigator.pop(dialogContext, true),
-                      child: const Text('Save'))
-                ]));
-    if (confirmed == true && note.text.trim().isNotEmpty) {
-      await Db.setFacility(widget.eventId, facility.key, note.text.trim());
-    }
-  }
-
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: Text(widget.eventTitle)),
@@ -91,8 +66,6 @@ class _OrganizerScheduleEditorScreenState
                     .map((item) => Map<String, dynamic>.from(item))
                     .toList() ??
                 [];
-            final facilities =
-                Map<String, dynamic>.from(data['facilities'] as Map? ?? {});
             return ListView(padding: const EdgeInsets.all(16), children: [
               const Text('Event Timeline',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
@@ -125,22 +98,6 @@ class _OrganizerScheduleEditorScreenState
                   onPressed: () => _editAgenda(context, null),
                   icon: const Icon(Icons.add),
                   label: const Text('Add Agenda Item')),
-              const SizedBox(height: 24),
-              const Text('On-Site Facilities',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              for (final facility in _facilityDefinitions)
-                SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    secondary: Icon(facility.icon),
-                    title: Text(facility.title),
-                    subtitle: facilities[facility.key] == null
-                        ? null
-                        : Text(facilities[facility.key].toString()),
-                    value: facilities[facility.key] != null,
-                    onChanged: (enabled) => enabled
-                        ? _setFacility(context, facility,
-                            facilities[facility.key]?.toString())
-                        : Db.removeFacility(widget.eventId, facility.key)),
               const SizedBox(height: 16),
               if (status == 'draft' || status == 'changes_requested')
                 FilledButton.icon(
@@ -168,18 +125,3 @@ class _OrganizerScheduleEditorScreenState
         ),
       );
 }
-
-class _FacilityDefinition {
-  final String key;
-  final IconData icon;
-  final String title;
-  const _FacilityDefinition(this.key, this.icon, this.title);
-}
-
-const _facilityDefinitions = [
-  _FacilityDefinition('parking', Icons.local_parking, 'Parking'),
-  _FacilityDefinition('transport', Icons.directions_bus, 'Public Transport'),
-  _FacilityDefinition('food', Icons.restaurant, 'Food & Drinks'),
-  _FacilityDefinition('restrooms', Icons.wc, 'Restrooms'),
-  _FacilityDefinition('firstAid', Icons.medical_services, 'First Aid'),
-];

@@ -46,6 +46,15 @@ class Db {
   static Future<bool> isAdmin({String? userId}) async =>
       (await _db.collection('admins').doc(userId ?? uid).get()).exists;
 
+  static Future<bool> isSeniorAdmin({String? userId}) async {
+    final data =
+        (await _db.collection('admins').doc(userId ?? uid).get()).data();
+    if (data == null) return false;
+    // authority_officer is retained as the legacy senior-admin value.
+    return data['role'] == 'senior_admin' ||
+        data['role'] == 'authority_officer';
+  }
+
   static Stream<QuerySnapshot<Map<String, dynamic>>> adminUsers() =>
       _db.collection('admins').snapshots();
 
@@ -53,13 +62,33 @@ class Db {
     required String userId,
     required String email,
     required String name,
+    required String category,
+    required List<String> access,
   }) =>
       _db.collection('admins').doc(userId.trim()).set({
         'email': email.trim(),
         'name': name.trim(),
-        'role': 'authority_officer',
+        'role': 'admin_officer',
+        'category': category,
+        'access': access,
         'createdAt': FieldValue.serverTimestamp(),
         'createdBy': uid,
+      });
+
+  static Future<void> updateAdmin({
+    required String userId,
+    required String email,
+    required String name,
+    required String category,
+    required List<String> access,
+  }) =>
+      _db.collection('admins').doc(userId).update({
+        'email': email.trim(),
+        'name': name.trim(),
+        'category': category,
+        'access': access,
+        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedBy': uid,
       });
 
   static Future<void> removeAdmin(String userId) =>
@@ -68,8 +97,10 @@ class Db {
   static Stream<QuerySnapshot<Map<String, dynamic>>> adminEvents() =>
       _db.collection('events').orderBy('created', descending: true).snapshots();
 
-  static Stream<QuerySnapshot<Map<String, dynamic>>> adminNotifications() =>
-      _db.collection('admin_notifications').orderBy('createdAt', descending: true).snapshots();
+  static Stream<QuerySnapshot<Map<String, dynamic>>> adminNotifications() => _db
+      .collection('admin_notifications')
+      .orderBy('createdAt', descending: true)
+      .snapshots();
 
   static Future<void> markAdminNotificationRead(String id) =>
       _db.collection('admin_notifications').doc(id).update({'read': true});
@@ -217,8 +248,9 @@ class Db {
       await ensureUserProfile();
     }
     final profile = await userProfile();
+    final profileData = profile.data() ?? <String, dynamic>{};
     return {
-      'profile': profile.data() ?? <String, dynamic>{},
+      'profile': profileData,
       'isAdmin': admin,
     };
   }
@@ -247,27 +279,28 @@ class Db {
   static Stream<DocumentSnapshot<Map<String, dynamic>>> event(String eventId) =>
       _db.collection('events').doc(eventId).snapshots();
   static Stream<QuerySnapshot<Map<String, dynamic>>> eventGallery(
-        String eventId,
-        {bool includePending = false, bool organizerOnly = false}) =>
+          String eventId,
+          {bool includePending = false,
+          bool organizerOnly = false}) =>
       organizerOnly
-        ? _db
-          .collection('events')
-          .doc(eventId)
-          .collection('gallery')
-          .where('uploadedBy', isEqualTo: uid)
-          .snapshots()
-        : includePending
-        ? _db
-          .collection('events')
-          .doc(eventId)
-          .collection('gallery')
-          .snapshots()
-            : _db
+          ? _db
               .collection('events')
               .doc(eventId)
               .collection('gallery')
-              .where('status', isEqualTo: 'approved')
-              .snapshots();
+              .where('uploadedBy', isEqualTo: uid)
+              .snapshots()
+          : includePending
+              ? _db
+                  .collection('events')
+                  .doc(eventId)
+                  .collection('gallery')
+                  .snapshots()
+              : _db
+                  .collection('events')
+                  .doc(eventId)
+                  .collection('gallery')
+                  .where('status', isEqualTo: 'approved')
+                  .snapshots();
 
   static Future<void> addGalleryImage(
       String eventId, String imageUrl, String caption) async {
@@ -308,16 +341,22 @@ class Db {
     final organizerId = event.data()?['organizerId']?.toString();
     if (organizerId != null && organizerId.isNotEmpty) {
       await userRef(organizerId).collection('notifications').add({
-        'title': 'Gallery image ${status == 'approved' ? 'approved' : 'rejected'}',
-        'message': 'An admin reviewed a gallery image for "${event.data()?['title'] ?? 'your event'}".',
+        'title':
+            'Gallery image ${status == 'approved' ? 'approved' : 'rejected'}',
+        'message':
+            'An admin reviewed a gallery image for "${event.data()?['title'] ?? 'your event'}".',
         'createdAt': FieldValue.serverTimestamp(),
         'read': false,
       });
     }
   }
 
-  static Future<void> deleteGalleryImage(String eventId, String imageId) =>
-      _db.collection('events').doc(eventId).collection('gallery').doc(imageId).delete();
+  static Future<void> deleteGalleryImage(String eventId, String imageId) => _db
+      .collection('events')
+      .doc(eventId)
+      .collection('gallery')
+      .doc(imageId)
+      .delete();
   static Future<DocumentSnapshot<Map<String, dynamic>>> eventOnce(
           String eventId) =>
       _db.collection('events').doc(eventId).get();
@@ -346,40 +385,81 @@ class Db {
     final ref = _db.collection('events').doc(id);
     final existing = (await ref.get()).data() ?? <String, dynamic>{};
     final wasApproved = existing['status'] == 'approved';
+    final wasChangesRequested = existing['status'] == 'changes_requested';
+    const notificationFields = [
+      'title',
+      'description',
+      'date',
+      'time',
+      'location',
+      'address',
+      'category',
+      'transportInfo',
+      'parkingInfo',
+      'imageUrl',
+    ];
+    final changedDetails = notificationFields
+        .any((field) => d.containsKey(field) && d[field] != existing[field]);
     await ref.update({
-        ...d,
-        'status': wasApproved ? 'pending' : (status ?? existing['status'] ?? 'draft'),
-        if (wasApproved) 'previousStatus': 'approved',
-        if (wasApproved) 'resubmittedAt': FieldValue.serverTimestamp(),
-      });
+      ...d,
+      'status':
+          wasApproved ? 'pending' : (status ?? existing['status'] ?? 'draft'),
+      if (wasApproved) 'previousStatus': 'approved',
+      if (wasApproved) 'resubmittedAt': FieldValue.serverTimestamp(),
+    });
     await _notifyAdmins(
         id,
-        d['title']?.toString() ?? existing['title']?.toString() ?? 'Untitled event',
-        wasApproved ? 'updated_approved' : 'updated',
+        d['title']?.toString() ??
+            existing['title']?.toString() ??
+            'Untitled event',
+        wasApproved
+            ? 'updated_approved'
+            : wasChangesRequested
+                ? 'resubmitted'
+                : 'updated',
         wasApproved
             ? 'An approved event was edited and needs re-approval.'
-            : 'An organizer updated an event.');
+            : wasChangesRequested
+                ? 'An event was resubmitted after requested changes.'
+                : 'An organizer updated an event.');
+    if (changedDetails) {
+      await _notifySavedSeekers(
+        existing,
+        'Saved event updated',
+        'Details for "${existing['title'] ?? d['title'] ?? 'your saved event'}" have changed.',
+      );
+    }
   }
 
   static Future<void> publishEvent(String id) async {
     final event = await eventOnce(id);
+    final wasChangesRequested =
+        event.data()?['status']?.toString() == 'changes_requested';
     await _db.collection('events').doc(id).update({
-        'status': 'pending',
-        'publishedAt': FieldValue.serverTimestamp(),
-      });
-    await _notifyAdmins(id, event.data()?['title']?.toString() ?? 'Untitled event',
-        'submitted', 'An organizer submitted an event for review.');
+      'status': 'pending',
+      'publishedAt': FieldValue.serverTimestamp(),
+    });
+    await _notifyAdmins(
+        id,
+        event.data()?['title']?.toString() ?? 'Untitled event',
+        wasChangesRequested ? 'resubmitted' : 'submitted',
+        wasChangesRequested
+            ? 'An event was resubmitted after requested changes.'
+            : 'An organizer submitted an event for review.');
   }
 
   static Future<void> deleteEvent(String id) async {
     final event = await eventOnce(id);
     await _db.collection('events').doc(id).delete();
-    await _notifyAdmins(id, event.data()?['title']?.toString() ?? 'Untitled event',
-        'deleted', 'An organizer deleted an event.');
+    await _notifyAdmins(
+        id,
+        event.data()?['title']?.toString() ?? 'Untitled event',
+        'deleted',
+        'An organizer deleted an event.');
   }
 
   static Future<void> _notifyAdmins(
-      String eventId, String eventTitle, String action, String message) =>
+          String eventId, String eventTitle, String action, String message) =>
       _db.collection('admin_notifications').add({
         'eventId': eventId,
         'eventTitle': eventTitle,
@@ -454,12 +534,30 @@ class Db {
       .orderBy('createdAt', descending: true)
       .snapshots();
   static Future<void> saveEvent(String id, Map<String, dynamic> d) =>
-      _db.collection('users').doc(uid).collection('saved').doc(id).set(d);
-  static Future<void> unsaveEvent(String id) =>
-      _db.collection('users').doc(uid).collection('saved').doc(id).delete();
+      _saveEvent(id, d);
+
+  static Future<void> _saveEvent(String id, Map<String, dynamic> d) async {
+    await _db.collection('users').doc(uid).collection('saved').doc(id).set(d);
+    await _db.collection('events').doc(id).update({
+      'savedBy': FieldValue.arrayUnion([uid]),
+    });
+  }
+
+  static Future<void> unsaveEvent(String id) async {
+    await _db.collection('users').doc(uid).collection('saved').doc(id).delete();
+    await _db.collection('events').doc(id).update({
+      'savedBy': FieldValue.arrayRemove([uid]),
+    });
+  }
+
   static Future<void> setReminder(
           String eventId, String eventTitle, DateTime time) =>
-      _db.collection('users').doc(uid).collection('reminders').doc(eventId).set({
+      _db
+          .collection('users')
+          .doc(uid)
+          .collection('reminders')
+          .doc(eventId)
+          .set({
         'eventId': eventId,
         'eventTitle': eventTitle,
         'time': Timestamp.fromDate(time),
@@ -472,13 +570,26 @@ class Db {
 
   static Stream<DocumentSnapshot<Map<String, dynamic>>> reminderForEvent(
           String eventId) =>
-      _db.collection('users').doc(uid).collection('reminders').doc(eventId).snapshots();
+      _db
+          .collection('users')
+          .doc(uid)
+          .collection('reminders')
+          .doc(eventId)
+          .snapshots();
 
-  static Stream<QuerySnapshot<Map<String, dynamic>>> allReminders() =>
-      _db.collection('users').doc(uid).collection('reminders').orderBy('time').snapshots();
+  static Stream<QuerySnapshot<Map<String, dynamic>>> allReminders() => _db
+      .collection('users')
+      .doc(uid)
+      .collection('reminders')
+      .orderBy('time')
+      .snapshots();
 
-  static Future<void> removeReminder(String eventId) =>
-      _db.collection('users').doc(uid).collection('reminders').doc(eventId).delete();
+  static Future<void> removeReminder(String eventId) => _db
+      .collection('users')
+      .doc(uid)
+      .collection('reminders')
+      .doc(eventId)
+      .delete();
 
   static Stream<QuerySnapshot<Map<String, dynamic>>> comments(String eventId) =>
       _db
@@ -487,12 +598,38 @@ class Db {
           .collection('comments')
           .orderBy('time', descending: true)
           .snapshots();
-  static Future<void> addComment(String eventId, String text) =>
-      _db.collection('events').doc(eventId).collection('comments').add({
-        'text': text,
-        'userId': uid,
-        'userName': userName,
-        'time': FieldValue.serverTimestamp()
+  static Future<void> addComment(String eventId, String text,
+      {String? imageUrl}) async {
+    final event = await eventOnce(eventId);
+    await _db.collection('events').doc(eventId).collection('comments').add({
+      'text': text.trim(),
+      if (imageUrl != null && imageUrl.isNotEmpty) 'imageUrl': imageUrl,
+      'userId': uid,
+      'userName': userName,
+      'time': FieldValue.serverTimestamp()
+    });
+    final organizerId = event.data()?['organizerId']?.toString();
+    if (organizerId != null && organizerId.isNotEmpty && organizerId != uid) {
+      await _notifyUser(
+        organizerId,
+        'New comment on your event',
+        '$userName commented on "${event.data()?['title'] ?? 'your event'}".',
+        eventId: eventId,
+      );
+    }
+  }
+
+  static Future<void> updateComment(String eventId, String commentId,
+          {required String text, String? imageUrl}) =>
+      _db
+          .collection('events')
+          .doc(eventId)
+          .collection('comments')
+          .doc(commentId)
+          .update({
+        'text': text.trim(),
+        'imageUrl': imageUrl ?? FieldValue.delete(),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
   static Future<void> deleteComment(String eventId, String id) => _db
       .collection('events')
@@ -500,6 +637,66 @@ class Db {
       .collection('comments')
       .doc(id)
       .delete();
+
+  static Future<void> replyToComment(
+      String eventId, String commentId, String reply) async {
+    final event = await eventOnce(eventId);
+    final comment = await _db
+        .collection('events')
+        .doc(eventId)
+        .collection('comments')
+        .doc(commentId)
+        .get();
+    final commentData = comment.data();
+    if (event.data()?['organizerId'] != uid || commentData == null) {
+      throw StateError('Only the event organizer can reply to comments.');
+    }
+    await comment.reference.update({
+      'replyText': reply.trim(),
+      'replyBy': userName,
+      'replyAt': FieldValue.serverTimestamp(),
+    });
+    final commenterId = commentData['userId']?.toString();
+    if (commenterId != null && commenterId.isNotEmpty && commenterId != uid) {
+      await _notifyUser(
+        commenterId,
+        'Organizer replied to your comment',
+        '${event.data()?['title'] ?? 'The event organizer'} replied to your comment.',
+        eventId: eventId,
+      );
+    }
+  }
+
+  static Future<void> _notifyUser(
+    String userId,
+    String title,
+    String message, {
+    String? eventId,
+  }) =>
+      userRef(userId).collection('notifications').add({
+        'title': title,
+        'message': message,
+        if (eventId != null) 'eventId': eventId,
+        'createdAt': FieldValue.serverTimestamp(),
+        'read': false,
+      });
+
+  static Future<void> _notifySavedSeekers(
+    Map<String, dynamic> event,
+    String notificationTitle,
+    String message,
+  ) async {
+    final savedBy = event['savedBy'];
+    if (savedBy is! List) return;
+    await Future.wait(savedBy
+        .whereType<String>()
+        .where((seekerId) => seekerId != event['organizerId'])
+        .map((seekerId) => _notifyUser(
+              seekerId,
+              notificationTitle,
+              message,
+            )));
+  }
 
   static Future<void> updateName(String name) async {
     await FirebaseAuth.instance.currentUser!.updateDisplayName(name);
@@ -509,8 +706,8 @@ class Db {
         .set({'name': name}, SetOptions(merge: true));
   }
 
-    static Future<String> uploadImage(
-      Uint8List bytes, String extension, {String folder = 'profiles'}) async {
+  static Future<String> uploadImage(Uint8List bytes, String extension,
+      {String folder = 'profiles'}) async {
     if (!CloudinaryConfig.isConfigured) {
       throw StateError(
           'Configure Cloudinary cloud name and unsigned upload preset first.');
@@ -520,8 +717,7 @@ class Db {
     final request = http.MultipartRequest('POST', uri)
       ..fields['upload_preset'] = CloudinaryConfig.uploadPreset
       ..fields['folder'] = folder
-      ..files.add(http.MultipartFile.fromBytes(
-          'file', bytes,
+      ..files.add(http.MultipartFile.fromBytes('file', bytes,
           filename: 'profile.$extension'));
     final response = await request.send();
     final body = await response.stream.bytesToString();
@@ -536,8 +732,7 @@ class Db {
     return url;
   }
 
-  static Future<String> uploadProfileImage(
-          Uint8List bytes, String extension) =>
+  static Future<String> uploadProfileImage(Uint8List bytes, String extension) =>
       uploadImage(bytes, extension);
 
   static Future<void> updateProfile({

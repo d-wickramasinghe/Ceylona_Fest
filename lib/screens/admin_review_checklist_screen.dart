@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../services/db.dart';
 import '../theme/app_theme.dart';
 import '../widgets/admin_brand_bar.dart';
+import '../widgets/admin_design.dart';
 
 class ReviewChecklistScreen extends StatelessWidget {
   const ReviewChecklistScreen({super.key});
@@ -82,9 +83,12 @@ class ReviewChecklistScreen extends StatelessWidget {
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
               children: [
-                Text(
-                  'Checklist items used by authority officers when deciding whether to approve, reject, or request changes.',
-                  style: TextStyle(color: Colors.grey.shade700, height: 1.4),
+                const AdminPageIntro(
+                  eyebrow: 'Governance',
+                  title: 'Review standards',
+                  description:
+                      'Keep decisions consistent with clear, reusable review criteria.',
+                  icon: Icons.rule_outlined,
                 ),
                 const SizedBox(height: 16),
                 _section(context, 'approval', 'Approve checklist', docs),
@@ -96,48 +100,47 @@ class ReviewChecklistScreen extends StatelessWidget {
         ),
       );
 
-      Widget _section(BuildContext context, String category, String title,
-        List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) {
-      final items = docs
-        .where((doc) => (doc.data()['category']?.toString() ?? 'approval') == category)
+  Widget _section(BuildContext context, String category, String title,
+      List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) {
+    final items = docs
+        .where((doc) =>
+            (doc.data()['category']?.toString() ?? 'approval') == category)
         .toList();
-      return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const SizedBox(height: 12),
-        Row(children: [
-        Expanded(
-          child: Text(title,
-            style: const TextStyle(
-              fontSize: 16, fontWeight: FontWeight.w700))),
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const SizedBox(height: 12),
+      Row(children: [
+        Expanded(child: AdminSectionLabel(title: title)),
         IconButton(
-          tooltip: 'Add checklist item',
-          onPressed: () => _editItem(context, category: category),
-          icon: const Icon(Icons.add_circle_outline)),
-        ]),
-        if (items.isEmpty)
+            tooltip: 'Add checklist item',
+            onPressed: () => _editItem(context, category: category),
+            icon: const Icon(Icons.add_circle_outline)),
+      ]),
+      if (items.isEmpty)
         const Card(
-          child: ListTile(
-            leading: Icon(Icons.rule_folder_outlined),
-            title: Text('No items in this section'))),
-        for (final doc in items)
+            child: ListTile(
+                leading: Icon(Icons.rule_folder_outlined),
+                title: Text('No items in this section'))),
+      for (final doc in items)
         Card(
-          child: ListTile(
-            leading: const Icon(Icons.checklist_rtl),
-            title: Text(doc.data()['title'] ?? 'Checklist item'),
-            subtitle: Text(
-              doc.data()['updatedAt'] == null ? 'Template item' : 'Updated'),
-            trailing: Wrap(children: [
-              IconButton(
-                tooltip: 'Edit',
-                icon: const Icon(Icons.edit_outlined),
-                onPressed: () => _editItem(context,
-                  category: category,
-                  id: doc.id,
-                  currentTitle: doc.data()['title']?.toString() ?? '')),
-              IconButton(
-                tooltip: 'Delete',
-                icon: const Icon(Icons.delete_outline),
-                onPressed: () => _deleteItem(context, doc.id)),
-            ]))),
-      ]);
-      }
+            child: ListTile(
+                leading: const Icon(Icons.checklist_rtl),
+                title: Text(doc.data()['title'] ?? 'Checklist item'),
+                subtitle: Text(doc.data()['updatedAt'] == null
+                    ? 'Template item'
+                    : 'Updated'),
+                trailing: Wrap(children: [
+                  IconButton(
+                      tooltip: 'Edit',
+                      icon: const Icon(Icons.edit_outlined),
+                      onPressed: () => _editItem(context,
+                          category: category,
+                          id: doc.id,
+                          currentTitle: doc.data()['title']?.toString() ?? '')),
+                  IconButton(
+                      tooltip: 'Delete',
+                      icon: const Icon(Icons.delete_outline),
+                      onPressed: () => _deleteItem(context, doc.id)),
+                ]))),
+    ]);
+  }
 }

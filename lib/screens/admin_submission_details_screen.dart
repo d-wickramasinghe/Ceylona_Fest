@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'admin_review_checklist_screen.dart';
 import '../theme/app_theme.dart';
+import '../widgets/admin_brand_bar.dart';
+import '../widgets/admin_design.dart';
 
 class SubmissionDetailsScreen extends StatelessWidget {
   const SubmissionDetailsScreen({super.key});
@@ -9,23 +11,21 @@ class SubmissionDetailsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Scaffold(
         backgroundColor: AppColors.background,
-        appBar: AppBar(
-          backgroundColor: AppColors.background,
-          surfaceTintColor: Colors.transparent,
-          leading: const BackButton(),
-          title: const Text('Submission Details'),
-          actions: const [
-            Padding(
-              padding: EdgeInsets.only(right: 16),
-              child: _StatusPill(
-                  label: 'Pending Review', color: AppColors.warning),
-            ),
-          ],
-        ),
+        appBar: AdminBrandBar(
+            title: 'Submission details',
+            onBack: () => Navigator.of(context).pop()),
         body: SafeArea(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
             children: [
+              const AdminPageIntro(
+                eyebrow: 'Moderation',
+                title: 'Review submission',
+                description:
+                    'Check the event information carefully before making a decision.',
+                icon: Icons.fact_check_outlined,
+              ),
+              const SizedBox(height: 16),
               const _EventPoster(),
               const SizedBox(height: 16),
               const _DetailsCard(),
@@ -56,7 +56,10 @@ class SubmissionDetailsScreen extends StatelessWidget {
                 title: 'Documents',
                 items: [
                   ('EVENT PROPOSAL', 'Colombo Cultural Festival Proposal.pdf'),
-                  ('VENUE CONFIRMATION', 'Viharamahadevi Park Confirmation.pdf'),
+                  (
+                    'VENUE CONFIRMATION',
+                    'Viharamahadevi Park Confirmation.pdf'
+                  ),
                   ('UPLOADED', '18 September 2026 · 2:42 PM'),
                 ],
               ),
@@ -282,28 +285,4 @@ class _SectionTitle {
     fontWeight: FontWeight.w800,
     color: AppColors.primaryDark,
   );
-}
-
-class _StatusPill extends StatelessWidget {
-  final String label;
-  final Color color;
-
-  const _StatusPill({required this.label, required this.color});
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: .2),
-          borderRadius: BorderRadius.circular(30),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: AppColors.primaryDark,
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      );
 }

@@ -7,6 +7,7 @@ import 'admin_review_checklist_screen.dart';
 import '../widgets/event_image.dart';
 import 'event_gallery_screen.dart';
 import '../widgets/admin_brand_bar.dart';
+import '../widgets/admin_design.dart';
 
 class AdminPortalScreen extends StatefulWidget {
   const AdminPortalScreen({super.key});
@@ -30,18 +31,35 @@ class _AdminPortalScreenState extends State<AdminPortalScreen> {
       child: Scaffold(
         body: pages[index],
         bottomNavigationBar: NavigationBar(
+          backgroundColor: AppColors.primaryDark,
+          indicatorColor: AppColors.primary.withValues(alpha: .2),
+          surfaceTintColor: Colors.transparent,
+          elevation: 8,
+          height: 72,
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
           selectedIndex: index,
           onDestinationSelected: (value) => setState(() => index = value),
           destinations: const [
             NavigationDestination(
-                icon: Icon(Icons.dashboard), label: 'Dashboard'),
+                icon: Icon(Icons.dashboard_outlined),
+                selectedIcon: Icon(Icons.dashboard),
+                label: 'Dashboard'),
             NavigationDestination(
-                icon: Icon(Icons.verified), label: 'Approvals'),
+                icon: Icon(Icons.verified_outlined),
+                selectedIcon: Icon(Icons.verified),
+                label: 'Approvals'),
             NavigationDestination(
-                icon: Icon(Icons.checklist), label: 'Checklist'),
+                icon: Icon(Icons.checklist_outlined),
+                selectedIcon: Icon(Icons.checklist),
+                label: 'Checklist'),
             NavigationDestination(
-                icon: Icon(Icons.notifications), label: 'Notifications'),
-            NavigationDestination(icon: Icon(Icons.person), label: 'Profile'),
+                icon: Icon(Icons.notifications_outlined),
+                selectedIcon: Icon(Icons.notifications),
+                label: 'Alerts'),
+            NavigationDestination(
+                icon: Icon(Icons.person_outline),
+                selectedIcon: Icon(Icons.person),
+                label: 'Profile'),
           ],
         ),
       ),
@@ -69,7 +87,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
         backgroundColor: const Color(0xfffbfaf7),
-        appBar: const AdminBrandBar(title: 'Event Approvals'),
+        appBar: const AdminBrandBar(title: 'Command centre'),
         body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
           stream: Db.adminEvents(),
           builder: (context, snapshot) {
@@ -85,29 +103,51 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             final filtered = docs.where((doc) {
               final data = doc.data();
               final matchesStatus = status == 'All statuses' ||
-                data['status'] == status.toLowerCase();
+                  data['status'] == status.toLowerCase();
               final text =
-                '${data['title'] ?? ''} ${data['organizerName'] ?? ''}'
-                  .toLowerCase();
+                  '${data['title'] ?? ''} ${data['organizerName'] ?? ''}'
+                      .toLowerCase();
               return matchesStatus && text.contains(query);
             }).toList();
             return ListView(
               padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
               children: [
-              Text('Review and manage event submissions before public publication.',
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-              const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [AppColors.primaryDark, Color(0xff403321)],
+                    ),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Good to see you, Admin',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700)),
+                      SizedBox(height: 6),
+                      Text(
+                          'Keep Ceylona events safe, accurate and ready to discover.',
+                          style: TextStyle(
+                              color: Color(0xffe7d9bc), height: 1.35)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
                 GridView.count(
                     crossAxisCount: 2,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
-                mainAxisExtent: 68,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    mainAxisExtent: 104,
                     children: [
                       _StatCard(
                           label: 'Pending',
-                    value: _count(docs, 'pending'),
+                          value: _count(docs, 'pending'),
                           color: AppColors.warning),
                       _StatCard(
                           label: 'Approved',
@@ -122,40 +162,54 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           value: docs.length,
                           color: AppColors.info),
                     ]),
-                      const SizedBox(height: 16),
-                      const Text('Search',
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 16),
+                const Text('SUBMISSIONS',
+                    style: TextStyle(
+                        fontSize: 11,
+                        letterSpacing: 1.1,
+                        color: AppColors.secondaryText,
+                        fontWeight: FontWeight.w800)),
                 const SizedBox(height: 8),
-                      TextField(
-                        controller: search,
-                        onChanged: (_) => setState(() {}),
-                        decoration: const InputDecoration(
-                          prefixIcon: Icon(Icons.search),
-                          hintText: 'Search events or organizers',
-                          isDense: true,
-                          border: OutlineInputBorder())),
-                      const SizedBox(height: 10),
-                      DropdownButtonFormField<String>(
-                        initialValue: status,
+                TextField(
+                    controller: search,
+                    onChanged: (_) => setState(() {}),
+                    decoration: const InputDecoration(
+                        prefixIcon: Icon(Icons.search),
+                        hintText: 'Search events or organizers',
                         isDense: true,
-                        decoration: const InputDecoration(
-                          labelText: 'Status', border: OutlineInputBorder()),
-                        items: const [
-                          'All statuses',
-                          'Pending',
-                          'Approved',
-                          'Rejected',
-                          'Changes_requested'
-                        ].map((value) => DropdownMenuItem(
-                          value: value, child: Text(value))).toList(),
-                        onChanged: (value) => setState(() => status = value!)),
-                      const SizedBox(height: 12),
-                      Text('${filtered.length} submissions',
-                        style: const TextStyle(fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 6),
-                      if (filtered.isEmpty) const Text('No submissions found.'),
-                      for (final doc in filtered)
-                        _DashboardSubmissionCard(doc: doc),
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                            borderRadius:
+                                BorderRadius.all(Radius.circular(12))))),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                    initialValue: status,
+                    isDense: true,
+                    decoration: const InputDecoration(
+                        labelText: 'Filter by status',
+                        border: OutlineInputBorder(
+                            borderRadius:
+                                BorderRadius.all(Radius.circular(12)))),
+                    items: const [
+                      'All statuses',
+                      'Pending',
+                      'Approved',
+                      'Rejected',
+                      'Changes_requested'
+                    ]
+                        .map((value) =>
+                            DropdownMenuItem(value: value, child: Text(value)))
+                        .toList(),
+                    onChanged: (value) => setState(() => status = value!)),
+                const SizedBox(height: 12),
+                Text('${filtered.length} submissions found',
+                    style: const TextStyle(
+                        color: AppColors.secondaryText,
+                        fontWeight: FontWeight.w700)),
+                const SizedBox(height: 6),
+                if (filtered.isEmpty) const Text('No submissions found.'),
+                for (final doc in filtered) _DashboardSubmissionCard(doc: doc),
               ],
             );
           },
@@ -245,14 +299,38 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Card(
+        clipBehavior: Clip.antiAlias,
         child: Padding(
           padding: const EdgeInsets.all(14),
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Icon(Icons.circle, color: color, size: 14),
-            const Spacer(),
-            Text('$value', style: Theme.of(context).textTheme.headlineMedium),
-            Text(label),
+          child: Row(children: [
+            Container(
+              width: 5,
+              height: 48,
+              decoration: BoxDecoration(
+                  color: color, borderRadius: BorderRadius.circular(8)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('$value',
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 2),
+                  Text(label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          color: AppColors.secondaryText,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ),
           ]),
         ),
       );
@@ -347,21 +425,26 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
           _ => const ['view'],
         };
         return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
           child: ListTile(
-            contentPadding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+            contentPadding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
             leading: EventImage(
                 url: data['imageUrl']?.toString(),
                 width: 56,
                 height: 56,
-                borderRadius:
-                    const BorderRadius.all(Radius.circular(6))),
+                borderRadius: const BorderRadius.all(Radius.circular(6))),
             title: Text(data['title'] ?? 'Untitled event',
-                maxLines: 2, overflow: TextOverflow.ellipsis),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w700)),
             subtitle: Padding(
                 padding: const EdgeInsets.only(top: 5),
                 child: Text(
-                    'by ${data['organizerName'] ?? 'Unknown organizer'}\n${data['date'] ?? ''} • ${data['location'] ?? ''}')),
+                    '${data['organizerName'] ?? 'Unknown organizer'}\n${data['date'] ?? ''} • ${data['location'] ?? ''}',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        color: AppColors.secondaryText, fontSize: 12))),
             isThreeLine: true,
             trailing: PopupMenuButton<String>(
               tooltip: 'Event actions',
@@ -411,6 +494,16 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
               }
               final docs = snapshot.data!.docs;
               return Column(children: [
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  child: AdminPageIntro(
+                    eyebrow: 'Moderation queue',
+                    title: 'Review submissions',
+                    description:
+                        'Make confident decisions and keep event quality high.',
+                    icon: Icons.verified_outlined,
+                  ),
+                ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
                   child: TextField(
@@ -706,13 +799,13 @@ class _AdminSubmissionDetailsScreenState
           ),
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
+                onPressed: () => Navigator.pop(dialogContext),
                 child: const Text('Cancel')),
             FilledButton(
-              onPressed: selectedChecklist.length != checklistItems.length ||
-                  (status != 'approved' && feedback.text.trim().isEmpty)
-                ? null
-                : () => Navigator.pop(dialogContext, true),
+                onPressed: selectedChecklist.length != checklistItems.length ||
+                        (status != 'approved' && feedback.text.trim().isEmpty)
+                    ? null
+                    : () => Navigator.pop(dialogContext, true),
                 child: const Text('Submit decision')),
           ],
         );
@@ -723,11 +816,8 @@ class _AdminSubmissionDetailsScreenState
         internalNotes.text.trim(), selectedChecklist.toList());
   }
 
-  Future<void> _submitDecision(
-      String status,
-      String feedback,
-      String internalNotes,
-      List<String> checklistItems) async {
+  Future<void> _submitDecision(String status, String feedback,
+      String internalNotes, List<String> checklistItems) async {
     try {
       await Db.reviewEvent(
           eventId: widget.id,
@@ -785,8 +875,7 @@ class _AdminSubmissionDetailsScreenState
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AdminBrandBar(
-          title: 'Submission Details',
-          onBack: () => Navigator.pop(context)),
+            title: 'Submission Details', onBack: () => Navigator.pop(context)),
         body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
           stream: Db.event(widget.id),
           builder: (context, snapshot) {
@@ -802,8 +891,7 @@ class _AdminSubmissionDetailsScreenState
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                EventImage(
-                    url: event['imageUrl']?.toString(), height: 190),
+                EventImage(url: event['imageUrl']?.toString(), height: 190),
                 const SizedBox(height: 12),
                 Text(event['title'] ?? 'Untitled event',
                     style: Theme.of(context).textTheme.headlineSmall),
@@ -827,15 +915,15 @@ class _AdminSubmissionDetailsScreenState
                 const Divider(),
                 Text(event['description'] ?? 'No description provided.'),
                 OutlinedButton.icon(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => EventGalleryScreen(
-                        eventId: widget.id,
-                        eventTitle: event['title'] ?? 'Event',
-                        mode: GalleryMode.admin))),
-                  icon: const Icon(Icons.photo_library_outlined),
-                  label: const Text('Review event gallery')),
+                    onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => EventGalleryScreen(
+                                eventId: widget.id,
+                                eventTitle: event['title'] ?? 'Event',
+                                mode: GalleryMode.admin))),
+                    icon: const Icon(Icons.photo_library_outlined),
+                    label: const Text('Review event gallery')),
                 const SizedBox(height: 20),
                 Text('Decision history',
                     style: Theme.of(context).textTheme.titleMedium),
@@ -1039,8 +1127,8 @@ class AdminNotificationsScreen extends StatefulWidget {
 class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
   int filter = 0;
 
-  Future<void> _openNotification(
-      BuildContext context, QueryDocumentSnapshot<Map<String, dynamic>> doc) async {
+  Future<void> _openNotification(BuildContext context,
+      QueryDocumentSnapshot<Map<String, dynamic>> doc) async {
     await Db.markAdminNotificationRead(doc.id);
     final data = doc.data();
     if (data['action'] == 'gallery_submitted' &&
@@ -1079,6 +1167,16 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
               return const Center(child: Text('No authority notifications'));
             }
             return Column(children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: AdminPageIntro(
+                  eyebrow: 'Activity centre',
+                  title: 'Stay up to date',
+                  description:
+                      'Submission activity and content updates that need your attention.',
+                  icon: Icons.notifications_active_outlined,
+                ),
+              ),
               if (allDocs.any((doc) => doc.data()['read'] != true))
                 Align(
                     alignment: Alignment.centerRight,
@@ -1111,13 +1209,22 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                           title: Text(doc.data()['title'] ?? 'Notification',
                               style:
                                   const TextStyle(fontWeight: FontWeight.w700)),
-                            subtitle: Text(
+                          subtitle: Text(
                               '${doc.data()['eventTitle'] ?? 'Event'}\n${doc.data()['message'] ?? ''}'),
-                              onTap: () => _openNotification(context, doc),
+                          onTap: () => _openNotification(context, doc),
                           trailing: doc.data()['read'] == true
-                              ? null
-                              : const Icon(Icons.mark_email_unread_outlined,
-                                color: Colors.amber, size: 18)))
+                              ? const Icon(Icons.chevron_right,
+                                  color: AppColors.secondaryText)
+                              : Container(
+                                  padding: const EdgeInsets.all(7),
+                                  decoration: BoxDecoration(
+                                      color: AppColors.primary
+                                          .withValues(alpha: .16),
+                                      shape: BoxShape.circle),
+                                  child: const Icon(
+                                      Icons.mark_email_unread_outlined,
+                                      color: AppColors.primary,
+                                      size: 18))))
               ])),
             ]);
           },
@@ -1134,14 +1241,44 @@ class AdminProfileScreen extends StatelessWidget {
     return Scaffold(
       appBar: const AdminBrandBar(title: 'Admin Profile'),
       body: ListView(padding: const EdgeInsets.all(16), children: [
-        const CircleAvatar(
-            radius: 36, child: Icon(Icons.admin_panel_settings, size: 36)),
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: AppColors.primaryDark,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: const Row(children: [
+            CircleAvatar(
+                radius: 30,
+                backgroundColor: AppColors.primary,
+                child: Icon(Icons.admin_panel_settings,
+                    size: 32, color: AppColors.primaryDark)),
+            SizedBox(width: 14),
+            Expanded(
+                child: Text('Administrator workspace',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700))),
+          ]),
+        ),
         const SizedBox(height: 12),
         Center(
             child: Text(user?.displayName ?? 'Authority Officer',
                 style: Theme.of(context).textTheme.titleLarge)),
-        const Center(child: Text('Senior Admin')),
+        FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+            future:
+                FirebaseFirestore.instance.collection('admins').doc(uid).get(),
+            builder: (context, snapshot) {
+              final role = snapshot.data?.data()?['role']?.toString();
+              return Center(
+                  child: Text(
+                      role == 'admin_officer' ? 'Admin Officer' : 'Admin'));
+            }),
         const SizedBox(height: 24),
+        const AdminSectionLabel(
+            title: 'Account settings',
+            subtitle: 'Manage access and preferences'),
         Card(
             child: Column(children: [
           ListTile(
@@ -1159,12 +1296,12 @@ class AdminProfileScreen extends StatelessWidget {
         ])),
         const SizedBox(height: 16),
         OutlinedButton.icon(
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const AdminManagementScreen())),
-          icon: const Icon(Icons.manage_accounts_outlined),
-          label: const Text('Manage authority officers')),
+            onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const AdminManagementScreen())),
+            icon: const Icon(Icons.manage_accounts_outlined),
+            label: const Text('Manage admins')),
         const Text('Security & preferences',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
         const SizedBox(height: 6),
@@ -1194,83 +1331,244 @@ class AdminProfileScreen extends StatelessWidget {
 class AdminManagementScreen extends StatelessWidget {
   const AdminManagementScreen({super.key});
 
-  Future<void> _add(BuildContext context) async {
+  static const categories = [
+    'Event Approvals',
+    'Content Moderation',
+    'User Management',
+    'Reports & Analytics',
+  ];
+  static const accessOptions = {
+    'approvals': 'Review event submissions',
+    'checklist': 'Manage review checklist',
+    'notifications': 'View admin notifications',
+    'analytics': 'View reports and analytics',
+  };
+
+  Future<Map<String, dynamic>?> _form(BuildContext context,
+      {QueryDocumentSnapshot<Map<String, dynamic>>? existing}) async {
     final userId = TextEditingController();
     final email = TextEditingController();
     final name = TextEditingController();
-    final saved = await showDialog<bool>(
+    final data = existing?.data();
+    userId.text = existing?.id ?? '';
+    email.text = data?['email']?.toString() ?? '';
+    name.text = data?['name']?.toString() ?? '';
+    var category = data?['category']?.toString() ?? categories.first;
+    var access = {
+      ...((data?['access'] as List?)?.whereType<String>() ?? const [])
+    };
+    final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Add authority officer'),
-        content: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(
-              controller: userId,
-              decoration: const InputDecoration(
-                  labelText: 'Firebase Auth UID', border: OutlineInputBorder())),
-          const SizedBox(height: 10),
-          TextField(
-              controller: name,
-              decoration: const InputDecoration(
-                  labelText: 'Officer name', border: OutlineInputBorder())),
-          const SizedBox(height: 10),
-          TextField(
-              controller: email,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                  labelText: 'Officer email', border: OutlineInputBorder())),
-        ])),
+        title: Text(existing == null ? 'Add admin' : 'Update admin details'),
+        content: StatefulBuilder(builder: (context, setDialogState) {
+          return SingleChildScrollView(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(
+                controller: userId,
+                readOnly: existing != null,
+                decoration: const InputDecoration(
+                    labelText: 'Firebase Auth UID',
+                    border: OutlineInputBorder())),
+            const SizedBox(height: 10),
+            TextField(
+                controller: name,
+                decoration: const InputDecoration(
+                    labelText: 'Admin name', border: OutlineInputBorder())),
+            const SizedBox(height: 10),
+            TextField(
+                controller: email,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(
+                    labelText: 'Admin email', border: OutlineInputBorder())),
+            const SizedBox(height: 10),
+            DropdownButtonFormField<String>(
+                initialValue: category,
+                decoration: const InputDecoration(
+                    labelText: 'Admin category', border: OutlineInputBorder()),
+                items: [
+                  for (final item in categories)
+                    DropdownMenuItem(value: item, child: Text(item))
+                ],
+                onChanged: (value) =>
+                    setDialogState(() => category = value ?? category)),
+            const SizedBox(height: 12),
+            const Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Access granted',
+                    style: TextStyle(fontWeight: FontWeight.w700))),
+            for (final entry in accessOptions.entries)
+              CheckboxListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  value: access.contains(entry.key),
+                  title: Text(entry.value),
+                  onChanged: (selected) => setDialogState(() {
+                        if (selected == true) {
+                          access.add(entry.key);
+                        } else {
+                          access.remove(entry.key);
+                        }
+                      })),
+          ]));
+        }),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Cancel')),
           FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Add officer')),
+              onPressed: () => Navigator.pop(dialogContext, {
+                    'userId': userId.text.trim(),
+                    'email': email.text.trim(),
+                    'name': name.text.trim(),
+                    'category': category,
+                    'access': access.toList(),
+                  }),
+              child: Text(existing == null ? 'Add admin' : 'Save changes')),
         ],
       ),
     );
-    if (saved != true || userId.text.trim().isEmpty) return;
-    await Db.addAdmin(
-        userId: userId.text, email: email.text, name: name.text);
+    userId.dispose();
+    email.dispose();
+    name.dispose();
+    return result;
+  }
+
+  Future<void> _save(BuildContext context,
+      {QueryDocumentSnapshot<Map<String, dynamic>>? existing}) async {
+    final result = await _form(context, existing: existing);
+    if (result == null || result['userId'].toString().isEmpty) return;
+    try {
+      if (existing == null) {
+        await Db.addAdmin(
+            userId: result['userId'],
+            email: result['email'],
+            name: result['name'],
+            category: result['category'],
+            access: List<String>.from(result['access']));
+      } else {
+        await Db.updateAdmin(
+            userId: result['userId'],
+            email: result['email'],
+            name: result['name'],
+            category: result['category'],
+            access: List<String>.from(result['access']));
+      }
+    } on FirebaseException catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error.message ?? 'Could not save admin')));
+      }
+    }
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: const AdminBrandBar(title: 'Authority Officers'),
-        floatingActionButton: FloatingActionButton.extended(
-            onPressed: () => _add(context),
-            icon: const Icon(Icons.person_add_alt_1),
-            label: const Text('Add officer')),
-        body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: Db.adminUsers(),
-          builder: (context, snapshot) {
-            if (!snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            return ListView(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
-                children: [
-                  const Text(
-                      'Add the Firebase Auth UID of an existing account to grant authority access.'),
-                  const SizedBox(height: 12),
-                  for (final doc in snapshot.data!.docs)
-                    Card(
-                        child: ListTile(
-                            leading: const Icon(Icons.admin_panel_settings),
-                            title: Text(doc.data()['name'] ?? doc.id),
-                            subtitle: Text(
-                                '${doc.data()['email'] ?? ''}\nUID: ${doc.id}'),
-                            trailing: doc.id == uid
-                                ? null
-                                : IconButton(
-                                    tooltip: 'Remove officer',
-                                    icon: const Icon(Icons.delete_outline),
-                                    onPressed: () => Db.removeAdmin(doc.id))))
-                ]);
-          },
-        ),
+  Widget build(BuildContext context) => FutureBuilder<bool>(
+        future: Db.isAdmin(),
+        builder: (context, adminSnapshot) {
+          final canManage = adminSnapshot.data == true;
+          return Scaffold(
+              appBar: const AdminBrandBar(title: 'Admin Management'),
+              floatingActionButton: canManage
+                  ? FloatingActionButton.extended(
+                      onPressed: () => _save(context),
+                      icon: const Icon(Icons.person_add_alt_1),
+                      label: const Text('Add admin'))
+                  : null,
+              body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                stream: Db.adminUsers(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  return ListView(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+                      children: [
+                        AdminPageIntro(
+                          eyebrow: 'Access control',
+                          title: 'Administrator directory',
+                          description: canManage
+                              ? 'Manage roles, categories and permissions across the admin team.'
+                              : 'You have view-only access to the administrator directory.',
+                          icon: Icons.manage_accounts_outlined,
+                        ),
+                        const SizedBox(height: 12),
+                        for (final doc in snapshot.data!.docs)
+                          _AdminListCard(
+                              doc: doc,
+                              canManage: canManage,
+                              onEdit: () => _save(context, existing: doc),
+                              onDelete: () async {
+                                try {
+                                  await Db.removeAdmin(doc.id);
+                                } on FirebaseException catch (error) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                            content: Text(error.message ??
+                                                'Could not delete admin')));
+                                  }
+                                }
+                              })
+                      ]);
+                },
+              ));
+        },
       );
+}
+
+class _AdminListCard extends StatelessWidget {
+  final QueryDocumentSnapshot<Map<String, dynamic>> doc;
+  final bool canManage;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  const _AdminListCard(
+      {required this.doc,
+      required this.canManage,
+      required this.onEdit,
+      required this.onDelete});
+
+  @override
+  Widget build(BuildContext context) {
+    final data = doc.data();
+    final access =
+        (data['access'] as List?)?.whereType<String>().toList() ?? [];
+    return Card(
+        child: Padding(
+            padding: const EdgeInsets.all(8),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.admin_panel_settings),
+                  title: Text(data['name']?.toString().isNotEmpty == true
+                      ? data['name'].toString()
+                      : doc.id),
+                  subtitle: Text('${data['email'] ?? ''}\nUID: ${doc.id}'),
+                  trailing: canManage
+                      ? Wrap(children: [
+                          IconButton(
+                              tooltip: 'Update details',
+                              icon: const Icon(Icons.edit_outlined),
+                              onPressed: onEdit),
+                          if (doc.id != uid)
+                            IconButton(
+                                tooltip: 'Delete admin',
+                                icon: const Icon(Icons.delete_outline),
+                                onPressed: onDelete),
+                        ])
+                      : null),
+              Wrap(spacing: 6, children: [
+                Chip(
+                    label:
+                        Text(data['category']?.toString() ?? 'Uncategorized'),
+                    visualDensity: VisualDensity.compact),
+                for (final item in access)
+                  Chip(label: Text(item), visualDensity: VisualDensity.compact),
+              ])
+            ])));
+  }
 }
 
 class _StatusBadge extends StatelessWidget {
@@ -1305,4 +1603,3 @@ Color _statusColor(String status) => switch (status) {
       'changes_requested' => Colors.orange,
       _ => Colors.blue,
     };
-

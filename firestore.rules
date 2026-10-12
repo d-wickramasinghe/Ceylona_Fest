@@ -10,6 +10,12 @@ service cloud.firestore {
       return signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
+    function isSeniorAdmin() {
+      return isAdmin()
+        && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role
+          in ['senior_admin', 'authority_officer'];
+    }
+
     function isOrganizer() {
       return signedIn()
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isOrganizer == true;
@@ -39,18 +45,35 @@ service cloud.firestore {
 
       match /notifications/{notificationId} {
         allow read, update: if signedIn() && (request.auth.uid == userId || isAdmin());
-        allow create: if isAdmin();
+        allow create: if isAdmin()
+          || (signedIn()
+            && request.auth.uid != userId
+            && request.resource.data.get('eventId', '') is string
+            && exists(/databases/$(database)/documents/events/$(request.resource.data.eventId))
+            && (
+              get(/databases/$(database)/documents/events/$(request.resource.data.eventId))
+                .data.organizerId == userId
+              || get(/databases/$(database)/documents/events/$(request.resource.data.eventId))
+                .data.organizerId == request.auth.uid
+            ));
         allow delete: if signedIn() && request.auth.uid == userId;
       }
 
       match /reminders/{reminderId} {
         allow read, write: if signedIn() && request.auth.uid == userId;
       }
+
     }
 
     match /admins/{adminId} {
       allow read: if signedIn() && (request.auth.uid == adminId || isAdmin());
-      allow create, update, delete: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.role == 'admin_officer'
+        && request.resource.data.category is string
+        && request.resource.data.access is list;
+      allow update: if isAdmin()
+        && request.resource.data.role == resource.data.role;
+      allow delete: if isAdmin() && adminId != request.auth.uid;
 
       match /notifications/{notificationId} {
         allow read, update: if signedIn() && request.auth.uid == adminId;
@@ -74,17 +97,49 @@ service cloud.firestore {
         || (isOrganizer()
           && resource.data.organizerId == request.auth.uid
           && request.resource.data.organizerId == request.auth.uid
-          && (
-            request.resource.data.status in ['draft', 'pending', 'changes_requested']
+          && (request.resource.data.status in ['draft', 'pending', 'changes_requested']
             || (resource.data.status == 'approved'
               && request.resource.data.status == 'pending')
-          ));
+            || (resource.data.status in ['draft', 'changes_requested']
+              && request.resource.data.diff(resource.data).affectedKeys()
+                  .hasOnly(['agenda']))
+            || request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(['facilities']))
+            || (signedIn()
+              && resource.data.status == 'approved'
+              && request.resource.data.status == resource.data.status
+              && request.resource.data.diff(resource.data).affectedKeys()
+                  .hasOnly(['savedBy'])
+              && request.resource.data.savedBy is list
+              && resource.data.get('savedBy', []) is list
+              && (
+                (request.resource.data.savedBy.hasAll(resource.data.get('savedBy', []))
+                  && request.resource.data.savedBy.hasAny([request.auth.uid])
+                  && request.resource.data.savedBy.size()
+                      == resource.data.get('savedBy', []).size() + 1)
+                || (resource.data.get('savedBy', []).hasAll(request.resource.data.savedBy)
+                  && resource.data.savedBy.hasAny([request.auth.uid])
+                  && !request.resource.data.savedBy.hasAny([request.auth.uid])
+                  && request.resource.data.savedBy.size()
+                      == resource.data.get('savedBy', []).size() - 1)
+              )));
       allow delete: if isAdmin()
         || (signedIn() && resource.data.organizerId == request.auth.uid);
 
       match /comments/{commentId} {
         allow read: if signedIn();
         allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+        allow update: if signedIn()
+          && (
+            (resource.data.userId == request.auth.uid
+              && request.resource.data.userId == resource.data.userId
+              && request.resource.data.userName == resource.data.userName)
+            || (isOrganizer()
+              && get(/databases/$(database)/documents/events/$(eventId))
+                  .data.organizerId == request.auth.uid
+              && request.resource.data.diff(resource.data).affectedKeys()
+                  .hasOnly(['replyText', 'replyBy', 'replyAt']))
+          );
         allow delete: if signedIn()
           && (resource.data.userId == request.auth.uid || isAdmin());
       }
@@ -116,9 +171,10 @@ service cloud.firestore {
         && request.resource.data.organizerId == request.auth.uid
         && request.resource.data.action in [
           'created', 'submitted', 'updated', 'updated_approved', 'deleted',
-          'gallery_submitted'
+          'resubmitted', 'gallery_submitted'
         ];
       allow delete: if isAdmin();
     }
+
   }
 }

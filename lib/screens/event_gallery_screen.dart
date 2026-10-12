@@ -4,6 +4,10 @@ import 'package:image_picker/image_picker.dart';
 
 import '../services/db.dart';
 import '../widgets/event_image.dart';
+import '../widgets/ceylona_bottom_navigation.dart';
+import '../widgets/admin_brand_bar.dart';
+import '../widgets/admin_design.dart';
+import '../theme/app_theme.dart';
 
 enum GalleryMode { seeker, organizer, admin }
 
@@ -68,7 +72,12 @@ class _EventGalleryScreenState extends State<EventGalleryScreen> {
     final includePending = widget.mode != GalleryMode.seeker;
     final organizerOnly = widget.mode == GalleryMode.organizer;
     return Scaffold(
-      appBar: AppBar(title: Text('${widget.eventTitle} Gallery')),
+      appBar: widget.mode == GalleryMode.admin
+          ? AdminBrandBar(title: '${widget.eventTitle} Gallery')
+          : AppBar(title: Text('${widget.eventTitle} Gallery')),
+      bottomNavigationBar: widget.mode == GalleryMode.seeker
+          ? const CeylonaBottomNavigation(selectedIndex: 0)
+          : null,
       floatingActionButton: widget.mode == GalleryMode.organizer
           ? FloatingActionButton.extended(
               onPressed: uploading ? null : _upload,
@@ -77,16 +86,16 @@ class _EventGalleryScreenState extends State<EventGalleryScreen> {
           : null,
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: Db.eventGallery(widget.eventId,
-          includePending: includePending, organizerOnly: organizerOnly),
+            includePending: includePending, organizerOnly: organizerOnly),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return Center(child: Text('Could not load gallery: ${snapshot.error}'));
+            return Center(
+                child: Text('Could not load gallery: ${snapshot.error}'));
           }
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
-          final docs = [...snapshot.data!.docs]
-            ..sort((a, b) {
+          final docs = [...snapshot.data!.docs]..sort((a, b) {
               final aTime = a.data()['createdAt'] as Timestamp?;
               final bTime = b.data()['createdAt'] as Timestamp?;
               return (bTime?.millisecondsSinceEpoch ?? 0)
@@ -112,37 +121,53 @@ class _EventGalleryScreenState extends State<EventGalleryScreen> {
               final status = data['status']?.toString() ?? 'pending';
               return Card(
                 clipBehavior: Clip.antiAlias,
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Expanded(
-                      child: EventImage(
-                          url: data['imageUrl']?.toString(),
-                          height: double.infinity,
-                          borderRadius: BorderRadius.zero)),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(10, 8, 6, 8),
-                    child: Row(children: [
-                      Expanded(child: Text(widget.mode == GalleryMode.seeker ? 'Approved image' : status)),
-                      if (widget.mode == GalleryMode.admin && status == 'pending') ...[
-                        IconButton(
-                            tooltip: 'Approve image',
-                            icon: const Icon(Icons.check_circle, color: Colors.green),
-                            onPressed: () => Db.reviewGalleryImage(
-                                widget.eventId, doc.id, 'approved')),
-                        IconButton(
-                            tooltip: 'Reject image',
-                            icon: const Icon(Icons.cancel, color: Colors.red),
-                            onPressed: () => Db.reviewGalleryImage(
-                                widget.eventId, doc.id, 'rejected')),
-                      ],
-                      if (widget.mode == GalleryMode.organizer)
-                        IconButton(
-                            tooltip: 'Delete image',
-                            icon: const Icon(Icons.delete_outline),
-                            onPressed: () => Db.deleteGalleryImage(
-                                widget.eventId, doc.id)),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                          child: EventImage(
+                              url: data['imageUrl']?.toString(),
+                              height: double.infinity,
+                              borderRadius: BorderRadius.zero)),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(10, 8, 6, 8),
+                        child: Row(children: [
+                          Expanded(
+                              child: widget.mode == GalleryMode.admin
+                                  ? AdminStatusChip(
+                                      label: status == 'approved'
+                                          ? 'Approved'
+                                          : 'Pending review',
+                                      color: status == 'approved'
+                                          ? AppColors.success
+                                          : AppColors.warning)
+                                  : Text(widget.mode == GalleryMode.seeker
+                                      ? 'Approved image'
+                                      : status)),
+                          if (widget.mode == GalleryMode.admin &&
+                              status == 'pending') ...[
+                            IconButton(
+                                tooltip: 'Approve image',
+                                icon: const Icon(Icons.check_circle,
+                                    color: Colors.green),
+                                onPressed: () => Db.reviewGalleryImage(
+                                    widget.eventId, doc.id, 'approved')),
+                            IconButton(
+                                tooltip: 'Reject image',
+                                icon:
+                                    const Icon(Icons.cancel, color: Colors.red),
+                                onPressed: () => Db.reviewGalleryImage(
+                                    widget.eventId, doc.id, 'rejected')),
+                          ],
+                          if (widget.mode == GalleryMode.organizer)
+                            IconButton(
+                                tooltip: 'Delete image',
+                                icon: const Icon(Icons.delete_outline),
+                                onPressed: () => Db.deleteGalleryImage(
+                                    widget.eventId, doc.id)),
+                        ]),
+                      ),
                     ]),
-                  ),
-                ]),
               );
             },
           );

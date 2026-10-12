@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import '../services/db.dart';
 import '../theme/app_theme.dart';
 import 'organizer_schedule_editor_screen.dart';
+import 'organizer_facilities_screen.dart';
 import '../widgets/event_image.dart';
 import 'event_gallery_screen.dart';
 
@@ -24,7 +25,7 @@ class OrganizerScreen extends StatelessWidget {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Draft saved'),
         content: const Text(
-            'Add agenda items and facilities now if this event needs them, or keep it as a draft and publish it later.'),
+            'Add agenda items now if this event needs them, or keep it as a draft and publish it later. Facilities can be managed separately at any time.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(dialogContext, 'later'),
@@ -230,9 +231,9 @@ class OrganizerScreen extends StatelessWidget {
                                 .last
                                 .toLowerCase();
                             imageUrl = await Db.uploadImage(
-                                selectedImageBytes!, extension,
-                                folder: 'events')
-                              .timeout(const Duration(seconds: 45));
+                                    selectedImageBytes!, extension,
+                                    folder: 'events')
+                                .timeout(const Duration(seconds: 45));
                           }
                           final data = {
                             'title': t.text.trim(),
@@ -441,12 +442,12 @@ class _OrganizerDashboard extends StatelessWidget {
               for (final doc in docs.take(5))
                 Card(
                     child: ListTile(
-                    leading: EventImage(
-                      url: doc.data()['imageUrl']?.toString(),
-                      width: 56,
-                      height: 56,
-                      borderRadius: const BorderRadius.all(
-                        Radius.circular(6))),
+                        leading: EventImage(
+                            url: doc.data()['imageUrl']?.toString(),
+                            width: 56,
+                            height: 56,
+                            borderRadius:
+                                const BorderRadius.all(Radius.circular(6))),
                         title: Text(doc['title'] ?? 'Untitled event'),
                         subtitle: Text(
                             '${doc['date'] ?? ''} - ${doc['location'] ?? ''}'),
@@ -478,8 +479,7 @@ class _OrganizerEventList extends StatelessWidget {
                   url: d.data()['imageUrl']?.toString(),
                   width: 56,
                   height: 56,
-                  borderRadius:
-                      const BorderRadius.all(Radius.circular(6))),
+                  borderRadius: const BorderRadius.all(Radius.circular(6))),
               title: Text(d['title'] ?? 'Untitled event',
                   maxLines: 2, overflow: TextOverflow.ellipsis),
               subtitle: Text(
@@ -492,22 +492,34 @@ class _OrganizerEventList extends StatelessWidget {
                       icon: const Icon(Icons.publish_outlined),
                       tooltip: 'Publish for admin review',
                       onPressed: () => Db.publishEvent(d.id)),
+                if (d.data()['status'] == 'draft' ||
+                    d.data()['status'] == 'changes_requested')
+                  IconButton(
+                      icon: const Icon(Icons.event_note_outlined),
+                      tooltip: 'Agenda',
+                      onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => OrganizerScheduleEditorScreen(
+                                  eventId: d.id,
+                                  eventTitle:
+                                      d['title'] ?? 'Untitled event')))),
                 IconButton(
-                    icon: const Icon(Icons.event_note_outlined),
-                    tooltip: 'Agenda & facilities',
+                    icon: const Icon(Icons.business_outlined),
+                    tooltip: 'Manage Facilities',
                     onPressed: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (_) => OrganizerScheduleEditorScreen(
+                            builder: (_) => OrganizerFacilitiesScreen(
                                 eventId: d.id,
                                 eventTitle: d['title'] ?? 'Untitled event')))),
-                        IconButton(
-                          icon: const Icon(Icons.photo_library_outlined),
-                          tooltip: 'Event gallery',
-                          onPressed: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => EventGalleryScreen(
+                IconButton(
+                    icon: const Icon(Icons.photo_library_outlined),
+                    tooltip: 'Event gallery',
+                    onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => EventGalleryScreen(
                                 eventId: d.id,
                                 eventTitle: d['title'] ?? 'Untitled event',
                                 mode: GalleryMode.organizer)))),

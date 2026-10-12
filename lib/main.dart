@@ -15,6 +15,7 @@ import 'screens/admin_portal_screen.dart';
 import 'services/db.dart';
 import 'services/notifications.dart';
 import 'theme/app_theme.dart';
+import 'widgets/ceylona_bottom_navigation.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -68,6 +69,25 @@ class _MainNavState extends State<MainNav> {
   late bool organizerEnabled = widget.isOrganizer;
   late bool adminEnabled = widget.isAdmin;
   bool organizerMode = false;
+
+  @override
+  void initState() {
+    super.initState();
+    seekerNavigationIndex.addListener(_handleSeekerNavigation);
+  }
+
+  @override
+  void dispose() {
+    seekerNavigationIndex.removeListener(_handleSeekerNavigation);
+    super.dispose();
+  }
+
+  void _handleSeekerNavigation() {
+    if (!organizerMode && mounted) {
+      setState(() => i = seekerNavigationIndex.value);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final pages = organizerMode
@@ -79,10 +99,13 @@ class _MainNavState extends State<MainNav> {
             ProfileScreen(
               isOrganizer: organizerEnabled,
               organizerMode: true,
-              onModeChanged: (mode) => setState(() {
-                organizerMode = mode;
-                i = 0;
-              }),
+              onModeChanged: (mode) {
+                setState(() {
+                  organizerMode = mode;
+                  i = 0;
+                });
+                seekerNavigationIndex.value = 0;
+              },
             ),
           ]
         : <Widget>[
@@ -94,10 +117,13 @@ class _MainNavState extends State<MainNav> {
               isOrganizer: organizerEnabled,
               organizerMode: false,
               onOrganizerEnabled: () => setState(() => organizerEnabled = true),
-              onModeChanged: (mode) => setState(() {
-                organizerMode = mode;
-                i = 0;
-              }),
+              onModeChanged: (mode) {
+                setState(() {
+                  organizerMode = mode;
+                  i = 0;
+                });
+                seekerNavigationIndex.value = 0;
+              },
             ),
           ];
     if (i >= pages.length) i = 0;
@@ -125,7 +151,13 @@ class _MainNavState extends State<MainNav> {
       body: pages[i],
       bottomNavigationBar: NavigationBar(
         selectedIndex: i,
-        onDestinationSelected: (v) => setState(() => i = v),
+        onDestinationSelected: (v) {
+          if (organizerMode) {
+            setState(() => i = v);
+          } else {
+            seekerNavigationIndex.value = v;
+          }
+        },
         destinations: destinations,
       ),
     );

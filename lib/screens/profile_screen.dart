@@ -5,6 +5,7 @@ import '../theme/app_theme.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/db.dart';
 import '../widgets/seeker_page_header.dart';
+import '../widgets/ceylona_bottom_navigation.dart';
 
 class ProfileScreen extends StatefulWidget {
   final VoidCallback? onOrganizerEnabled;
@@ -62,8 +63,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               controller: password,
               obscureText: true,
               decoration: const InputDecoration(
-                  labelText: 'Current password',
-                  border: OutlineInputBorder()),
+                  labelText: 'Current password', border: OutlineInputBorder()),
             ),
           ],
         ),
@@ -116,18 +116,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
           CircleAvatar(
               radius: 36,
               backgroundColor: AppColors.warning.withValues(alpha: .16),
-              backgroundImage: profileImageUrl != null &&
-                  profileImageUrl!.isNotEmpty
-                ? NetworkImage(profileImageUrl!)
-                : null,
+              backgroundImage:
+                  profileImageUrl != null && profileImageUrl!.isNotEmpty
+                      ? NetworkImage(profileImageUrl!)
+                      : null,
               child: profileImageUrl == null || profileImageUrl!.isEmpty
-                ? Text(
-                  userName.isEmpty
-                    ? 'U'
-                    : userName.substring(0, 1).toUpperCase(),
-                  style: const TextStyle(
-                    fontSize: 28, fontWeight: FontWeight.bold))
-                : null),
+                  ? Text(
+                      userName.isEmpty
+                          ? 'U'
+                          : userName.substring(0, 1).toUpperCase(),
+                      style: const TextStyle(
+                          fontSize: 28, fontWeight: FontWeight.bold))
+                  : null),
           const SizedBox(height: 8),
           Center(
               child: Text(userName,
@@ -151,7 +151,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               icon: Icons.lock_outline, title: 'Privacy & Security'),
           const _ProfileRow(icon: Icons.help_outline, title: 'Help & Support'),
           const SizedBox(height: 8),
-            TextField(
+          TextField(
               controller: nameController,
               decoration: const InputDecoration(labelText: 'Full name')),
           const SizedBox(height: 12),
@@ -231,10 +231,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _openPersonalInformation() async {
-    await Navigator.push(
-        context,
-        MaterialPageRoute(
-            builder: (_) => const PersonalInformationScreen()));
+    await Navigator.push(context,
+        MaterialPageRoute(builder: (_) => const PersonalInformationScreen()));
     await _loadProfileImage();
   }
 }
@@ -247,8 +245,7 @@ class PersonalInformationScreen extends StatefulWidget {
       _PersonalInformationScreenState();
 }
 
-class _PersonalInformationScreenState
-    extends State<PersonalInformationScreen> {
+class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
   final name = TextEditingController();
   final phone = TextEditingController();
   final city = TextEditingController();
@@ -260,7 +257,8 @@ class _PersonalInformationScreenState
 
   ImageProvider<Object>? get profileImage {
     if (selectedImage != null) return MemoryImage(selectedImage!);
-    if (imageUrl != null && imageUrl!.isNotEmpty) return NetworkImage(imageUrl!);
+    if (imageUrl != null && imageUrl!.isNotEmpty)
+      return NetworkImage(imageUrl!);
     return null;
   }
 
@@ -302,8 +300,8 @@ class _PersonalInformationScreenState
   Future<void> _save() async {
     final displayName = name.text.trim();
     if (displayName.length < 2) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Enter your full name')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Enter your full name')));
       return;
     }
     setState(() => saving = true);
@@ -357,6 +355,7 @@ class _PersonalInformationScreenState
     }
     return Scaffold(
       appBar: AppBar(title: const Text('Personal Information')),
+      bottomNavigationBar: const CeylonaBottomNavigation(selectedIndex: 4),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
